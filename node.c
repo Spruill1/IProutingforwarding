@@ -14,28 +14,42 @@
 #include <vector>
 #include <algorithm>
 
+using namespace std;
+
+#define IP_LENGTH = 16
+#define TTL_MAX = 16
+#define MTU_MAX = 1400
+#define IN_BUFFER_SIZE = (1024 * 64)
+#define UPDATE_TIMER = 5000 //(5000ms = 5seconds)
+#define EXPIRE_TIMER = 12000
+#define ROUTING_ENTRIES_MAX = 64
+
+
 typedef struct node{
-	std::string myAddr;
+	string myAddr;
 	int myPort;
 
 	void print(){printf("node:\t%s:%d\n",myAddr.c_str(),myPort);}
 } node;
 
-typedef struct interface{
-	std::string IPofRemote;
+typedef struct net_interface{
+	char IPofRemote;
 	int PortofRemote;
-	std::string VIPofMyInterface;
-	std::string VIPofRemoteInterface;
+	string VIPofMyInterface;
+	string VIPofRemoteInterface;
+
+
+	int sock;	
 
 	void print(){
-		printf("interface:\n\t%s:%d\n\t%s\n\t%s\n",
+		printf("net_interface:\n\t%s:%d\n\t%s\n\t%s\n",
 			IPofRemote.c_str(),PortofRemote,
 			VIPofMyInterface.c_str(),VIPofRemoteInterface.c_str());
 	}
 
-} interface;
+} net_interface;
 
-void readFile(char* path, node *myNode, std::vector<interface> * myInterfaces);
+int readFile(char* path, node *myNode, vector<net_interface> * myInterfaces);
 
 int main(int argv, char* argc[]){
 
@@ -46,17 +60,17 @@ int main(int argv, char* argc[]){
 	}
 
 	node myNode;
-	std::vector<interface> myInterfaces;
-	readFile(argc[1],&myNode,&myInterfaces); //get the file's information
+	vector<net_interface> myInterfaces;
+	if(int err = readFile(argc[1],&myNode,&myInterfaces) < 0) {return err;} //get the file's information
 
 
 }
 
-void readFile(char* path, node *myNode, std::vector<interface> * myInterfaces) {
-	std::ifstream fin(path);
+int readFile(char* path, node *myNode, vector<net_interface> * myInterfaces) {
+	ifstream fin(path);
 
-	std::string myInfo;
-	std::getline(fin,myInfo);
+	string myInfo;
+	getline(fin,myInfo);
 	
 	//get the IP & Port for this node
 	myNode->myAddr = myInfo.substr(0,myInfo.find(":"));
@@ -67,8 +81,8 @@ void readFile(char* path, node *myNode, std::vector<interface> * myInterfaces) {
 	//get the information for the interfaces
 	while(!fin.eof()){
 		myInfo.erase(0,myInfo.length());
-		std::getline(fin,myInfo);
-		interface myInt;
+		getline(fin,myInfo);
+		net_interface myInt;
 		myInt.IPofRemote = myInfo.substr(0,myInfo.find(":"));
 			myInfo.erase(0,myInfo.find(":")+1);
 		myInt.PortofRemote = atoi(myInfo.substr(0,myInfo.find(" ")).c_str());
@@ -80,8 +94,12 @@ void readFile(char* path, node *myNode, std::vector<interface> * myInterfaces) {
 		if(myInt.IPofRemote.length()>0){
 		myInterfaces->push_back(myInt);}
 	}
-	for(std::vector<interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
+	for(vector<net_interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
 	{ 
 		iter->print(); 
+		if (iter->sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, 0) < 0 ){
+			perror("Create socket failed:");
+			return -1;
+		}
 	}
 }
