@@ -35,6 +35,8 @@ typedef struct interface{
 
 } interface;
 
+void readFile(char* path, node *myNode, std::vector<interface> * myInterfaces);
+
 int main(int argv, char* argc[]){
 
 	//if there is no arguments, then exit
@@ -43,20 +45,24 @@ int main(int argv, char* argc[]){
 			return -1;
 	}
 
-
 	node myNode;
 	std::vector<interface> myInterfaces;
+	readFile(argc[1],&myNode,&myInterfaces); //get the file's information
 
-	std::ifstream fin(argc[1]);
+
+}
+
+void readFile(char* path, node *myNode, std::vector<interface> * myInterfaces) {
+	std::ifstream fin(path);
 
 	std::string myInfo;
 	std::getline(fin,myInfo);
 	
 	//get the IP & Port for this node
-	myNode.myAddr = myInfo.substr(0,myInfo.find(":"));
-	myNode.myPort = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
+	myNode->myAddr = myInfo.substr(0,myInfo.find(":"));
+	myNode->myPort = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
 
-	myNode.print();
+	myNode->print();
 
 	//get the information for the interfaces
 	while(!fin.eof()){
@@ -72,9 +78,9 @@ int main(int argv, char* argc[]){
 		myInt.VIPofRemoteInterface = myInfo;
 		
 		if(myInt.IPofRemote.length()>0){
-		myInterfaces.push_back(myInt);}
+		myInterfaces->push_back(myInt);}
 	}
-	for(std::vector<interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
+	for(std::vector<interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
 	{ 
 		iter->print(); 
 	}
