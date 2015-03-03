@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
 #include <string.h>
 #include <fstream>
@@ -30,29 +31,13 @@ using namespace std;
 #define ROUTING_ENTRIES_MAX 64
 #define RIP_DATA 200
 
-uint32_t IPStringToInt(string ip){
-    if(ip=="localhost") {ip = "127.0.0.1";}
-	uint32_t res=0;
-	string nIP = string(ip.data());
-	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
-	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str());
-	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str());
-	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str());
-	res+=B0; res=res<<8;
-	res+=B1; res=res<<8;
-	res+=B2; res=res<<8;
-	res+=B3;
-	return res;
-}
-
 typedef struct node{
 	uint32_t IP_me;
 	int port_me;
 
-	node(){port_me = 0; IP_me = 0;}
+	int fd;
+
+	node(){port_me = 0; IP_me = 0; fd = -1;}
 	void print(){printf("node:\t%x:%d\n",IP_me,port_me);}
 } node;
 
@@ -90,6 +75,7 @@ typedef struct net_interface{
 	int sendPacket(char *data_with_header){
 		if(!up) return -1; //the connection isn't up
 		//TODO: write out the sendpacket routine
+		//	create socket on the fly?
 
 		return 0; //finished
 	}
@@ -123,6 +109,23 @@ typedef struct RIP {
 node Node; //global for this node's information
 forwarding_table forwardingTable;
 
+uint32_t IPStringToInt(string ip){
+    if(ip=="localhost") {ip = "127.0.0.1";}
+	uint32_t res=0;
+	string nIP = string(ip.data());
+	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+	nIP.erase(0,nIP.find(".")+1);
+	uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+	nIP.erase(0,nIP.find(".")+1);
+	uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+	nIP.erase(0,nIP.find(".")+1);
+	uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str());
+	res+=B0; res=res<<8;
+	res+=B1; res=res<<8;
+	res+=B2; res=res<<8;
+	res+=B3;
+	return res;
+}
 
 int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
 	ifstream fin(path);
@@ -161,6 +164,23 @@ int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
 	}
 }
 
+void createReadSocket(){
+	int nodeSocket;
+	if(nodeSocket=socket(AF_INET, SOCK_DGRAM, 0)==0) {
+		perror("create socket failed:");
+		exit(1);
+	}
+	
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(Node.port_me);
+
+	bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr));
+
+	Node.fd = nodeSocket;
+}
+
 int main(int argv, char* argc[]){
 
 	//if there is no arguments, then exit
@@ -172,6 +192,50 @@ int main(int argv, char* argc[]){
 	vector<net_interface> myInterfaces;
 	if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
 
+	createReadSocket();
+
+	fd_set rfds;
+    	struct timeval tv;
+    	tv.tv_sec = 5;
+    	tv.tv_usec = 0;
+	int activity;
+	while(1){
+		FD_ZERO(&rfds);
+    		FD_SET(STDIN_FILENO, &rfds);
+    		FD_SET(Node.fd, &rfds);
+		
+		select(Node.fd+1,&rfds,NULL,NULL,&tv);
+
+		if(FD_ISSET(STDIN_FILENO, &rfds)) {
+			char buf[128];
+			fgets(buf,128,stdin);
+			printf("Got input: %s\n\n",buf);
+		}	
+		if(FD_ISSET(Node.fd, &rfds)) {
+			//something happened on this node's socket...
+		}
+	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
