@@ -112,13 +112,8 @@ typedef struct net_interface{
 } net_interface;
 
 typedef struct forwarding_table_entry {
-    uint32_t dest;
+    uint32_t hop_ip;
     uint16_t cost;
-    int int_id;
-    
-    forwarding_table_entry() {memset(&dest[0], 0, IP_LENGTH);
-        cost=TTL_MAX;
-        int_id = -1;}
 } forwarding_table_entry;
 
 
@@ -184,6 +179,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         }
     }
     //return something?
+    return 0;
 }
 
 void createReadSocket(){
@@ -243,16 +239,23 @@ void respondRoutes(uint32_t requesterIp){
     
 }
 
-void processRoutes(char* message){
+void processRoutes(char* message, uint32_t source_ip){
     RIP *package = (struct RIP *) message;
     //packet from some other node
     //if destination exists in the forwarding table
-    
     for(int i=0; i<package->num_entries; i++){
-        if(forwardingTable.find(package->entries[i].address) ==  std::map::end){
-            //table doesn't have a node
-	    forwarding_table_entry = newEntry;
-            forwardingTable.insert(std::pair<uint32_t, forwarding_table_entry>(package->entries[i].address,newEntry));
+        if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
+            //table doesn't have a node, add a new one!
+            forwarding_table_entry newEntry;
+            newEntry.cost =package->entries[i].cost+1;
+            newEntry.hop_ip = source_ip;
+            forwardingTable[package->entries[i].address] = newEntry;
+        } else {
+            //pick shortest path!
+            if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
+                forwardingTable[package->entries[i].address].hop_ip = source_ip;
+                forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1
+            }
         }
     }
     
