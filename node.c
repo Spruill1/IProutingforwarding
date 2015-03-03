@@ -61,7 +61,7 @@ typedef struct net_interface{
 			vip_me = 0;
 			vip_remote = 0;
 			up = false;
-    }
+    	}
 	void print(){
 		struct in_addr temp;
 		temp.s_addr = vip_me;
@@ -192,29 +192,33 @@ void cmd_ifconfig(){
 }
 
 void cmd_routes(){}
-void cmd_send(){}
-void cmd_down(){}
-void cmd_up(){}
+void cmd_down(int id){myInterfaces[id-1].up = false;}
+void cmd_up(int id){myInterfaces[id-1].up = true;}
+void cmd_send(struct in_addr vip, char* msg){}
 
 void processCommand(char* cmmd){
+	char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
+	sscanf(cmmd,"%s %s %s",arg0,arg1,arg2);
 	if(strncmp(cmmd,"ifconfig",8)==0){
 		cmd_ifconfig();
 		return;
 	}
-	if(strncmp(cmmd,"routes",6)){
+	if(strncmp(cmmd,"routes",6)==0){
 		cmd_routes();
 		return;
 	}
-	if(strncmp(cmmd,"down",4)){
-		cmd_down();
+	if(strncmp(cmmd,"down",4)==0){
+		cmd_down(atoi(arg1));
 		return;
 	}
-	if(strncmp(cmmd,"up",2)){
-		cmd_up();
+	if(strncmp(cmmd,"up",2)==0){
+		cmd_up(atoi(arg1));
 		return;
 	}
-	if(strncmp(cmmd,"send",4)){
-		cmd_send();
+	if(strncmp(cmmd,"send",4)==0){
+		struct in_addr vip;
+		inet_aton(arg1,&vip);
+		cmd_send(vip,arg2);
 		return;
 	}
 }
