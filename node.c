@@ -31,6 +31,7 @@ using namespace std;
 #define RIP_DATA 200
 
 uint32_t IPStringToInt(string ip){
+    if(ip=="localhost") {ip = "127.0.0.1";}
 	uint32_t res=0;
 	string nIP = string(ip.data());
 	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
@@ -40,43 +41,43 @@ uint32_t IPStringToInt(string ip){
 	uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str());
 	nIP.erase(0,nIP.find(".")+1);
 	uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str());
-	res+=B0; res=res<<8; 
-	res+=B1; res=res<<8; 
-	res+=B2; res=res<<8; 
+	res+=B0; res=res<<8;
+	res+=B1; res=res<<8;
+	res+=B2; res=res<<8;
 	res+=B3;
-	printf("\t\t~%s\t%d.%d.%d.%d\n\t\t\t~%x\n\n",ip.c_str(),B0,B1,B2,B3,res);
-	return (B0<<24)&(B1<<16)&(B2<<8)&(B3);
+	return res;
 }
 
 typedef struct node{
-	char IP_me[IP_LENGTH];
+	uint32_t IP_me;
 	int port_me;
-	
-	node(){port_me = -1; memset(&IP_me[0], 0, IP_LENGTH);}
-	void print(){printf("node:\t%s:%d\n",IP_me,port_me);}
+
+	node(){port_me = 0; IP_me = 0;}
+	void print(){printf("node:\t%x:%d\n",IP_me,port_me);}
 } node;
 
 typedef struct net_interface{
 	int id;
 
-	char IP_remote[IP_LENGTH];
+	uint32_t IP_remote;
 	uint16_t port_remote;
-	char vip_me[IP_LENGTH];
-	char vip_remote[IP_LENGTH];
+	uint32_t vip_me;
+	uint32_t vip_remote;
 
-	int sock;	
+	int sock;
+	struct sockaddr_in addr;
 	bool up;
 
 	net_interface(int id_in){
 			id = id_in;
-			memset(&IP_remote[0], 0, IP_LENGTH);
-			port_remote = -1;
-			memset(&vip_me[0], 0, IP_LENGTH);
-			memset(&vip_remote[0], 0, IP_LENGTH);
+			IP_remote = 0;
+			port_remote = 0;
+			vip_me = 0;
+			vip_remote = 0;
 			up = false;
-			}
+    }
 	void print(){
-		printf("net_interface:\n\tid: %d\n\t%s:%d\n\t%s\n\t%s\n",
+		printf("net_interface:\n\tid: %d\n\t%x:%d\n\t%x\n\t%x\n",
 			id,IP_remote,port_remote,vip_me,vip_remote);
 	}
 	void initSocket(){
@@ -99,7 +100,7 @@ typedef struct forwarding_table_entry {
 	char dest[IP_LENGTH];
 	uint16_t cost;
 	int int_id;
-	
+
 	forwarding_table_entry() {memset(&dest[0], 0, IP_LENGTH);
 				  cost=TTL_MAX;
 				  int_id = -1;}
@@ -120,7 +121,7 @@ typedef struct RIP {
 } RIP;
 
 node Node; //global for this node's information
-forwarding_table forwardingTable; 
+forwarding_table forwardingTable;
 
 
 int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
@@ -128,9 +129,9 @@ int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
 
 	string myInfo;
 	getline(fin,myInfo);
-	
+
 	//get the IP & Port for this node
-	myInfo.substr(0,myInfo.find(":")).copy(Node->IP_me,IP_LENGTH,0);
+	Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
 	Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
 
 	Node->print();
@@ -140,30 +141,24 @@ int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
 		myInfo.erase(0,myInfo.length());
 		getline(fin,myInfo);
 		net_interface myInt = net_interface(myInterfaces->size()+1);
-		myInfo.substr(0,myInfo.find(":")).copy(myInt.IP_remote,IP_LENGTH,0);
+		myInt.IP_remote = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
 			myInfo.erase(0,myInfo.find(":")+1);
 		myInt.port_remote = atoi(myInfo.substr(0,myInfo.find(" ")).c_str());
 			myInfo.erase(0,myInfo.find(" ")+1);
-		myInfo.substr(0,myInfo.find(" ")).copy(myInt.vip_me,IP_LENGTH,0);
+		myInt.vip_me = IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
 		IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
 			myInfo.erase(0,myInfo.find(" ")+1);
-		myInfo.copy(myInt.vip_remote,IP_LENGTH,0);
-		
-		if(strlen(myInt.IP_remote)>0){
+		myInt.vip_remote = IPStringToInt(myInfo);
+
+		if(myInt.IP_remote!=0){
 			myInt.initSocket();
 			myInterfaces->push_back(myInt);
 		}
 	}
 	for(vector<net_interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
-	{ 
-		iter->print(); 
+	{
+		iter->print();
 	}
-}
-
-string getCommand(){
-	string usrIn;
-	cin >> usrIn;
-	return usrIn;
 }
 
 int main(int argv, char* argc[]){
