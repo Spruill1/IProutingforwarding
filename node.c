@@ -31,6 +31,15 @@
 #define EXPIRE_TIMER 12000
 #define ROUTING_ENTRIES_MAX 64
 #define RIP_DATA 200
+#define RIP_REQUEST     1
+#define RIP_RESPONSE    2
+#define RIP_TRIGREQ     6
+#define RIP_TRIGRESP    7
+#define RIP_TRIGACK     8
+#define RIP_UPREQ       9
+#define RIP_UPRESP      10
+#define RIP_UPACK       11
+
 
 typedef struct node{
 	uint32_t IP_me;
@@ -174,7 +183,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
 			myInterfaces->push_back(myInt);
 		}
 	}
-
+    //return something?
 }
 
 void createReadSocket(){
@@ -196,6 +205,7 @@ void createReadSocket(){
 
 	Node.fd = nodeSocket;
 }
+
 
 void cmd_ifconfig(){
 	for(std::vector<net_interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
