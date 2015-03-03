@@ -220,14 +220,10 @@ void createReadSocket(){
 
 
 void requestRoutes(int command){
-    
-    if(command==RIP_REQUEST)
-        char message[4]={0x0,0x1,0x0,0x0};
-    
-    else if (command==RIP_TRIGREQ)
-        char message[4] ={0x0,0x6,0x0,0x0};
-    else
-        return;
+    uint32_t request[2];
+    request[0] = command;
+    request[1] = 0;
+    char* message = (char*)request;
     // Send the request packet to all nodes directly linked to it
     for(int i=0; i<myInterfaces.size(); i++){
         //ip_sendto(message, 32, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip);
@@ -235,7 +231,7 @@ void requestRoutes(int command){
     
 }
 
-void respondRoutes(uint32_t requesterIp, int flag){
+void advertiseRoutes(uint32_t requesterIp, int flag){
     char message[MTU];
     struct RIP *package;
     package = (struct RIP*) message;
@@ -249,7 +245,7 @@ void respondRoutes(uint32_t requesterIp, int flag){
     std::map<uint32_t, forwarding_table_entry>::iterator it;
     for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
     {
-        if(it->first==it->second.hop_ip){
+        if(it->first==it->requesterIP){ //immediate node
             package->entries[i].cost =  it->second.cost;
             package->entries[i].address = it->first;
             i++;
