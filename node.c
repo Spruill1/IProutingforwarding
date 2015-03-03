@@ -42,79 +42,79 @@
 
 
 typedef struct node{
-	uint32_t IP_me;
-	int port_me;
-
-	int fd;
-
-	node(){port_me = 0; IP_me = 0; fd = -1;}
-	void print(){printf("node:\t%x:%d\n",IP_me,port_me);}
+    uint32_t IP_me;
+    int port_me;
+    
+    int fd;
+    
+    node(){port_me = 0; IP_me = 0; fd = -1;}
+    void print(){printf("node:\t%x:%d\n",IP_me,port_me);}
 } node;
 
 typedef struct net_interface{
-	int id;
-
-	uint32_t IP_remote;
-	uint16_t port_remote;
-	uint32_t vip_me;
-	uint32_t vip_remote;
-
-	int sock;
-	struct sockaddr_in addr;
-	bool up;
-
-	net_interface(int id_in){
-			id = id_in;
-			IP_remote = 0;
-			port_remote = 0;
-			vip_me = 0;
-			vip_remote = 0;
-			up = false;
-    	}
-	void print(){
-		struct in_addr temp;
-		temp.s_addr = vip_me;
-		printf("%d\t%s\t%s\n",id,inet_ntoa(temp),up ? "up" : "down");
-	}
-	void initSocket(){
-		if ((sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, IPPROTO_IP)) < 0 ){
-			perror("Create socket failed:");
-			exit(1);
-		}
-		up = true;
-	}
-	int sendPacket(char *data_with_header){
-		if(!up) return -1; //the connection isn't up
-		//TODO: write out the sendpacket routine
-		//	create socket on the fly?
-
-		return 0; //finished
-	}
-
+    int id;
+    
+    uint32_t IP_remote;
+    uint16_t port_remote;
+    uint32_t vip_me;
+    uint32_t vip_remote;
+    
+    int sock;
+    struct sockaddr_in addr;
+    bool up;
+    
+    net_interface(int id_in){
+        id = id_in;
+        IP_remote = 0;
+        port_remote = 0;
+        vip_me = 0;
+        vip_remote = 0;
+        up = false;
+    }
+    void print(){
+        struct in_addr temp;
+        temp.s_addr = vip_me;
+        printf("%d\t%s\t%s\n",id,inet_ntoa(temp),up ? "up" : "down");
+    }
+    void initSocket(){
+        if ((sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, IPPROTO_IP)) < 0 ){
+            perror("Create socket failed:");
+            exit(1);
+        }
+        up = true;
+    }
+    int sendPacket(char *data_with_header){
+        if(!up) return -1; //the connection isn't up
+        //TODO: write out the sendpacket routine
+        //	create socket on the fly?
+        
+        return 0; //finished
+    }
+    
 } net_interface;
 
 typedef struct forwarding_table_entry {
-	char dest[IP_LENGTH];
-	uint16_t cost;
-	int int_id;
-
-	forwarding_table_entry() {memset(&dest[0], 0, IP_LENGTH);
-				  cost=TTL_MAX;
-				  int_id = -1;}
+    char dest[IP_LENGTH];
+    uint16_t cost;
+    int int_id;
+    
+    forwarding_table_entry() {memset(&dest[0], 0, IP_LENGTH);
+        cost=TTL_MAX;
+        int_id = -1;}
 } forwarding_table_entry;
 
 typedef struct forwarding_table {
-	uint16_t num_entries;
-	forwarding_table_entry entries[ROUTING_ENTRIES_MAX];
+    uint16_t num_entries;
+    forwarding_table_entry entries[ROUTING_ENTRIES_MAX];
 } forwarding_table;
 
 typedef struct RIP {
-	uint16_t command;
-	uint16_t num_entries;
-	struct {
-		uint32_t cost;
-		uint32_t address;
-	} entries[ROUTING_ENTRIES_MAX];
+    uint16_t command;
+    uint16_t num_entries;
+    struct {
+        uint32_t cost;
+        uint32_t address;
+    } entries[ROUTING_ENTRIES_MAX];
 } RIP;
 
 node Node; //global for this node's information
@@ -123,174 +123,248 @@ forwarding_table forwardingTable;
 
 uint32_t IPStringToInt(std::string ip){
     if(ip=="localhost") {ip = "127.0.0.1";}
-	uint32_t res=0;
-	std::string nIP = std::string(ip.data());
-	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
-	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str());
-	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str());
-	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str());
-	res+=B0; res=res<<8;
-	res+=B1; res=res<<8;
-	res+=B2; res=res<<8;
-	res+=B3;
-	return res;
+    uint32_t res=0;
+    std::string nIP = std::string(ip.data());
+    uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+    nIP.erase(0,nIP.find(".")+1);
+    uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+    nIP.erase(0,nIP.find(".")+1);
+    uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+    nIP.erase(0,nIP.find(".")+1);
+    uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str());
+    res+=B0; res=res<<8;
+    res+=B1; res=res<<8;
+    res+=B2; res=res<<8;
+    res+=B3;
+    return res;
 }
 
 int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) {
-	std::ifstream fin(path);
-
-	std::string myInfo;
-	getline(fin,myInfo);
-
-	//get the IP & Port for this node
-	Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
-	Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
-
-	Node->print();
-
-	//get the information for the interfaces
-	while(!fin.eof()){
-		myInfo.erase(0,myInfo.length());
-		getline(fin,myInfo);
-		net_interface myInt = net_interface(myInterfaces->size()+1);
-		myInt.IP_remote = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
-			myInfo.erase(0,myInfo.find(":")+1);
-		myInt.port_remote = atoi(myInfo.substr(0,myInfo.find(" ")).c_str());
-			myInfo.erase(0,myInfo.find(" ")+1);
-		myInt.vip_me = IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
-		IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
-			myInfo.erase(0,myInfo.find(" ")+1);
-		myInt.vip_remote = IPStringToInt(myInfo);
-
-		if(myInt.IP_remote!=0){
-			myInt.initSocket();
-			myInterfaces->push_back(myInt);
-		}
-	}
+    std::ifstream fin(path);
+    
+    std::string myInfo;
+    getline(fin,myInfo);
+    
+    //get the IP & Port for this node
+    Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
+    Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
+    
+    Node->print();
+    
+    //get the information for the interfaces
+    while(!fin.eof()){
+        myInfo.erase(0,myInfo.length());
+        getline(fin,myInfo);
+        net_interface myInt = net_interface(myInterfaces->size()+1);
+        myInt.IP_remote = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
+        myInfo.erase(0,myInfo.find(":")+1);
+        myInt.port_remote = atoi(myInfo.substr(0,myInfo.find(" ")).c_str());
+        myInfo.erase(0,myInfo.find(" ")+1);
+        myInt.vip_me = IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
+        IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
+        myInfo.erase(0,myInfo.find(" ")+1);
+        myInt.vip_remote = IPStringToInt(myInfo);
+        
+        if(myInt.IP_remote!=0){
+            myInt.initSocket();
+            myInterfaces->push_back(myInt);
+        }
+    }
     //return something?
 }
 
 void createReadSocket(){
-	int nodeSocket;
-	if((nodeSocket=socket(AF_INET, SOCK_DGRAM, 0))==0) {
-		perror("create socket failed:");
-		exit(1);
-	}
-	
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(Node.port_me);
-
-	if((bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr)))==-1){
-		perror("bind failed:");
-		exit(1);
-	}
-
-	Node.fd = nodeSocket;
+    int nodeSocket;
+    if((nodeSocket=socket(AF_INET, SOCK_DGRAM, 0))==0) {
+        perror("create socket failed:");
+        exit(1);
+    }
+    
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(Node.port_me);
+    
+    if((bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr)))==-1){
+        perror("bind failed:");
+        exit(1);
+    }
+    
+    Node.fd = nodeSocket;
 }
 
 
+void requestRoutes(int command){
+    
+    if(command==RIP_REQUEST)
+        char message[4]={0x0,0x1,0x0,0x0};
+    
+    else if (command==RIP_TRIGREQ)
+        char message[4] ={0x0,0x6,0x0,0x0};
+    else
+        return;
+    
+    for(int i=0; i<myInterfaces.size(); i++){
+        //ip_sendto(message, 32, <#uint32_t *route_ip#>, <#uint32_t *src_ip#>, <#uint32_t *dest_ip#>);
+    }
+    
+}
+
+void respondRoutes(uint32_t requesterIp){
+    char message[MTU];
+    struct RIP *package;
+    package = (struct RIP*) message;
+    package->command = (uint16_t)RIP_RESPONSE;
+    
+    package->num_entries = forwardingTable.num_entries;
+    
+    
+    for(int i=0; i<package->num_entries; i++){
+        package->entries[i].cost =  forwardingTable.entries[i].cost;
+        std::string str(forwardingTable.entries[i].dest);
+        package->entries[i].address = IPStringToInt(str);
+    }
+    
+    
+    
+    //ip_sendto
+    
+    
+}
+
+void processRoutes(char* message){
+    RIP *package = (struct RIP *) message;
+    
+    
+}
+
+
+int ripMessageSize(RIP *package){
+    return sizeof(uint16_t)*2+sizeof(uint32_t)*2*package->num_entries;
+}
+
+void ip_sendto(char* payload, int payload_size, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip){
+    char buffer[MTU];
+    struct ip *ip;
+    ip = (struct ip*) buffer;
+    
+    //process package
+    // Must fill this up
+    ip->ip_hl = 0; //header length
+    ip->ip_v = 0; //version
+    ip->ip_tos = 0; //Type of service
+    ip->ip_len = htons(ip->ip_hl + payload_size); //Total length
+    ip->ip_id = 0; //id
+    ip->ip_off= 0; //offset
+    ip->ip_ttl = 0; //time to live
+    ip->ip_p = 0; //protocol
+    ip->ip_sum = 0; //checksum
+    ip->ip_src = *(struct in_addr *)src_ip;
+    ip->ip_dst = *(struct in_addr *)dest_ip;
+    
+    //sendto(<#int#>, <#const void *#>, <#size_t#>, <#int#>, <#const struct sockaddr *#>, <#socklen_t#>)
+}
+
+
+void sendRoutes()
+
 void cmd_ifconfig(){
-	for(std::vector<net_interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
-	{
-		iter->print();
-	}
+    for(std::vector<net_interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
+    {
+        iter->print();
+    }
 }
 
 void cmd_routes(){}
 void cmd_down(int id){
-	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
-	else myInterfaces[id-1].up = false;}
+    if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
+    else myInterfaces[id-1].up = false;}
 void cmd_up(int id){
-	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
-	else myInterfaces[id-1].up = true;}
+    if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
+    else myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* msg){}
 
 void processCommand(char* cmmd){
-	char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
-	sscanf(cmmd,"%s %s %s",arg0,arg1,arg2);
-	if(strncmp(cmmd,"ifconfig",8)==0){
-		cmd_ifconfig();
-		return;
-	}
-	if(strncmp(cmmd,"routes",6)==0){
-		cmd_routes();
-		return;
-	}
-	if(strncmp(cmmd,"down",4)==0){
-		cmd_down(atoi(arg1));
-		return;
-	}
-	if(strncmp(cmmd,"up",2)==0){
-		cmd_up(atoi(arg1));
-		return;
-	}
-	if(strncmp(cmmd,"send",4)==0){
-		struct in_addr vip;
-		inet_aton(arg1,&vip);
-		cmd_send(vip,arg2);
-		return;
-	}
+    char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
+    sscanf(cmmd,"%s %s %s",arg0,arg1,arg2);
+    if(strncmp(cmmd,"ifconfig",8)==0){
+        cmd_ifconfig();
+        return;
+    }
+    if(strncmp(cmmd,"routes",6)==0){
+        cmd_routes();
+        return;
+    }
+    if(strncmp(cmmd,"down",4)==0){
+        cmd_down(atoi(arg1));
+        return;
+    }
+    if(strncmp(cmmd,"up",2)==0){
+        cmd_up(atoi(arg1));
+        return;
+    }
+    if(strncmp(cmmd,"send",4)==0){
+        struct in_addr vip;
+        inet_aton(arg1,&vip);
+        cmd_send(vip,arg2);
+        return;
+    }
 }
 
 bool isRIP(char* buff) { //is the packet a RIP packet?
-	return false;
+    return false;
 }
 
 bool isIP(char* buff) { //is the packet an IP packet?
-	return false;
+    return false;
 }
 
 void processIncomingPacket(char* buff) {
-
+    
 }
 
 int main(int argv, char* argc[]){
-
-	//if there is no arguments, then exit
-	if (argv < 2) {
-			perror("No input file:");
-			exit(1);
-	}
-
-	if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
-
-	createReadSocket();
-
-	fd_set rfds, fullrfds;
-    	struct timeval tv;
-    	tv.tv_sec = 5;
-    	tv.tv_usec = 0;
-	int activity;
-	FD_ZERO(&fullrfds);
-	FD_SET(Node.fd, &fullrfds);
-	FD_SET(STDIN_FILENO, &fullrfds);
-	while(1){
-		rfds = fullrfds;
-		select(Node.fd+1,&rfds,NULL,NULL,&tv);
-			
-		if(FD_ISSET(STDIN_FILENO, &rfds)) {
-			char buf[128];
-			fgets(buf,128,stdin);
-			processCommand(buf);
-		}
-		if(FD_ISSET(Node.fd, &rfds)) {
-			//yay! we got a packet, I wonder what it is?
-			
-			char buf[128];
-
-			if((recv(Node.fd,buf,128,0))==-1){
-				perror("recv failed:");
-				exit(1);
-			}
-			printf("Got Packet: %s\n",buf);
-			
-		}
-	}
+    
+    //if there is no arguments, then exit
+    if (argv < 2) {
+        perror("No input file:");
+        exit(1);
+    }
+    
+    if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
+    
+    createReadSocket();
+    
+    fd_set rfds, fullrfds;
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    int activity;
+    FD_ZERO(&fullrfds);
+    FD_SET(Node.fd, &fullrfds);
+    FD_SET(STDIN_FILENO, &fullrfds);
+    while(1){
+        rfds = fullrfds;
+        select(Node.fd+1,&rfds,NULL,NULL,&tv);
+        
+        if(FD_ISSET(STDIN_FILENO, &rfds)) {
+            char buf[128];
+            fgets(buf,128,stdin);
+            processCommand(buf);
+        }
+        if(FD_ISSET(Node.fd, &rfds)) {
+            //yay! we got a packet, I wonder what it is?
+            
+            char buf[128];
+            
+            if((recv(Node.fd,buf,128,0))==-1){
+                perror("recv failed:");
+                exit(1);
+            }
+            printf("Got Packet: %s\n",buf);
+            
+        }
+    }
 }
 
 
