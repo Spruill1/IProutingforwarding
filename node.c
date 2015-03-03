@@ -114,15 +114,12 @@ typedef struct net_interface{
 typedef struct forwarding_table_entry {
     uint32_t hop_ip;
     uint16_t cost;
-<<<<<<< HEAD
     int int_id;
     
     forwarding_table_entry() {
-	dest = 0;
+	hop_ip = 0;
         cost=TTL_MAX;
         int_id = -1;}
-=======
->>>>>>> d3dd56b2257126b85a9497a3dabbc2f7fc520d0d
 } forwarding_table_entry;
 
 
@@ -254,11 +251,6 @@ void processRoutes(char* message, uint32_t source_ip){
     //if destination exists in the forwarding table
     for(int i=0; i<package->num_entries; i++){
         if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
-<<<<<<< HEAD
-            //table doesn't have a node
-	    forwarding_table_entry newEntry;
-            forwardingTable.insert(std::pair<uint32_t, forwarding_table_entry>(package->entries[i].address,newEntry));
-=======
             //table doesn't have a node, add a new one!
             forwarding_table_entry newEntry;
             newEntry.cost =package->entries[i].cost+1;
@@ -268,9 +260,8 @@ void processRoutes(char* message, uint32_t source_ip){
             //pick shortest path!
             if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
                 forwardingTable[package->entries[i].address].hop_ip = source_ip;
-                forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1
+                forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1;
             }
->>>>>>> d3dd56b2257126b85a9497a3dabbc2f7fc520d0d
         }
     }
     
