@@ -49,10 +49,30 @@ int main(int argv, char* argc[]){
 		exit(1);
 	}
 	
-	char buf[20] = "David says hi!";	
+	char buf[128]="";
+	struct ip * ip = (struct ip *)&buf[0];
+
+	    //process package
+	    // Must fill this up
+	    ip->ip_hl = 5; //header length
+	    ip->ip_v = 0; //version
+	    ip->ip_tos = 0; //Type of service
+	    ip->ip_len = htons(ip->ip_hl + 10); //Total length
+	    ip->ip_id = 0; //id
+	    ip->ip_off= 0; //offset
+	    ip->ip_ttl = 0; //time to live
+	    ip->ip_p = 200;
+	    ip->ip_sum = 0; //checksum
+	    ip->ip_src.s_addr = 0;
+	    ip->ip_dst.s_addr = 0;
+
+	char *payload = buf+ip->ip_hl*4;
+	int pkt_id=0;
 
 	while(1){
-		if((sendto(nodeSocket, buf, 20, 0, (struct sockaddr *)&c_addr, sizeof(c_addr)))==-1){
+		ip->ip_p = pkt_id%3==0 ? 0:200;
+		sprintf(payload,"pkt: %d",++pkt_id);
+		if((sendto(nodeSocket, buf, 128, 0, (struct sockaddr *)&c_addr, sizeof(c_addr)))==-1){
 			perror("sendto died painfully:");
 			exit(1);
 		}
