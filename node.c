@@ -20,7 +20,7 @@
 #include <thread>
 #include <chrono>
 
-using namespace std;
+//using namespace std;
 
 #define IP_LENGTH 16
 #define TTL_MAX 16
@@ -109,10 +109,10 @@ typedef struct RIP {
 node Node; //global for this node's information
 forwarding_table forwardingTable;
 
-uint32_t IPStringToInt(string ip){
+uint32_t IPStringToInt(std::string ip){
     if(ip=="localhost") {ip = "127.0.0.1";}
 	uint32_t res=0;
-	string nIP = string(ip.data());
+	std::string nIP = std::string(ip.data());
 	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
 	nIP.erase(0,nIP.find(".")+1);
 	uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str());
@@ -127,10 +127,10 @@ uint32_t IPStringToInt(string ip){
 	return res;
 }
 
-int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
-	ifstream fin(path);
+int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) {
+	std::ifstream fin(path);
 
-	string myInfo;
+	std::string myInfo;
 	getline(fin,myInfo);
 
 	//get the IP & Port for this node
@@ -158,7 +158,7 @@ int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
 			myInterfaces->push_back(myInt);
 		}
 	}
-	for(vector<net_interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
+	for(std::vector<net_interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
 	{
 		iter->print();
 	}
@@ -166,7 +166,7 @@ int readFile(char* path, node *Node, vector<net_interface> * myInterfaces) {
 
 void createReadSocket(){
 	int nodeSocket;
-	if(nodeSocket=socket(AF_INET, SOCK_DGRAM, 0)==0) {
+	if((nodeSocket=socket(AF_INET, SOCK_DGRAM, 0))==0) {
 		perror("create socket failed:");
 		exit(1);
 	}
@@ -176,7 +176,10 @@ void createReadSocket(){
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(Node.port_me);
 
-	bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr));
+	if((bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr)))==-1){
+		perror("bind failed:");
+		exit(1);
+	}
 
 	Node.fd = nodeSocket;
 }
@@ -189,30 +192,39 @@ int main(int argv, char* argc[]){
 			exit(1);
 	}
 
-	vector<net_interface> myInterfaces;
+	std::vector<net_interface> myInterfaces;
 	if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
 
 	createReadSocket();
 
-	fd_set rfds;
+	fd_set rfds, fullrfds;
     	struct timeval tv;
     	tv.tv_sec = 5;
     	tv.tv_usec = 0;
 	int activity;
+	FD_ZERO(&fullrfds);
+	FD_SET(Node.fd, &fullrfds);
+	FD_SET(STDIN_FILENO, &fullrfds);
 	while(1){
-		FD_ZERO(&rfds);
-    		FD_SET(STDIN_FILENO, &rfds);
-    		FD_SET(Node.fd, &rfds);
-		
+		rfds = fullrfds;
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
-
+			
 		if(FD_ISSET(STDIN_FILENO, &rfds)) {
 			char buf[128];
 			fgets(buf,128,stdin);
 			printf("Got input: %s\n\n",buf);
-		}	
+		}
 		if(FD_ISSET(Node.fd, &rfds)) {
 			//something happened on this node's socket...
+			
+			char buf[128];
+
+			if((recv(Node.fd,buf,128,0))==-1){
+				perror("recv failed:");
+				exit(1);
+			}
+			printf("Got Packet: %s\n",buf);
+			
 		}
 	}
 }
