@@ -1,4 +1,4 @@
- push #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
 
@@ -33,6 +33,8 @@
 #define ROUTING_ENTRIES_MAX 64
 #define RIP_PROTOCOL 200
 #define SENT_PROTOCOL 0
+#define is_ip false
+#define is_rip true
 #define RIP_REQUEST     1
 #define RIP_RESPONSE    2
 #define RIP_TRIGREQ     6
@@ -255,7 +257,12 @@ int ripMessageSize(RIP *package){
     return sizeof(uint16_t)*2+sizeof(uint32_t)*2*package->num_entries;
 }
 
-void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip, int sock){
+//takes in a virtual IP address and determines which interface to send it along by searching the forwarding table
+int getNextHop(struct in_addr vip){
+	return 0;
+}
+
+void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t route_ip, uint32_t src_ip, uint32_t dest_ip, int sock){
     char buffer[MTU];
     struct ip *ip;
     ip = (struct ip*) buffer;
@@ -269,10 +276,10 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t *route_ip, 
     ip->ip_id = 0; //id
     ip->ip_off= 0; //offset
     ip->ip_ttl = 0; //time to live
-    ip->ip_p = 0; //protocol
+    ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL;
     ip->ip_sum = 0; //checksum
-    ip->ip_src = *(struct in_addr *)src_ip;
-    ip->ip_dst = *(struct in_addr *)dest_ip;
+    ip->ip_src.s_addr = src_ip;
+    ip->ip_dst.s_addr = dest_ip;
     
     //sendto(<#int#>, <#const void *#>, <#size_t#>, <#int#>, <#const struct sockaddr *#>, <#socklen_t#>)
 }
@@ -291,8 +298,9 @@ void cmd_down(int id){
 void cmd_up(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
     else myInterfaces[id-1].up = true;}
-void cmd_send(struct in_addr vip, char* buf){ //TODO: create the ip header and tack it on,
-    ip_sendto(buf, 
+void cmd_send(struct in_addr vip, char* buf){ //TODO: may need to create new socket...
+    net_interface dest = myInterfaces.at(getNextHop(vip));
+    ip_sendto(is_ip, buf, strlen(buf), dest.IP_remote, Node.IP_me, vip, Node.fd);
 }
 
 void processCommand(char* cmmd){
@@ -334,10 +342,10 @@ void processIncomingPacket(char* buff) { //TODO: this is called whenever a packe
     //starts, it should just check which type of packet it is and hand off
     //to the appropriate method
     if(isRIP(buff)){
-        
+        return;
     }
     if(isIP(buff)){
-        
+        return;
     }
     //if the packet is not a valid IP packet or RIP packet, ignore it
 }
