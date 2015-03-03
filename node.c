@@ -47,13 +47,13 @@
 
 
 typedef struct node{
-    uint32_t IP_me;
+    struct in_addr IP_me;
     int port_me;
     
     int fd;
     
-    node(){port_me = 0; IP_me = 0; fd = -1;}
-    void print(){printf("node:\t%x:%d\n",IP_me,port_me);}
+    node(){port_me = 0; IP_me.s_addr = 0; fd = -1;}
+    void print(){printf("node:\t%x:%d\n",(int)IP_me.s_addr,port_me);}
 } node;
 
 
@@ -62,7 +62,7 @@ node Node; //global for this node's information
 typedef struct net_interface{
     int id;
     
-    uint32_t IP_remote;
+    struct in_addr IP_remote;
     uint16_t port_remote;
     uint32_t vip_me;
     uint32_t vip_remote;
@@ -74,7 +74,7 @@ typedef struct net_interface{
     
     net_interface(int id_in){
         id = id_in;
-        IP_remote = 0;
+        IP_remote.s_addr = 0;
         port_remote = 0;
         vip_me = 0;
         vip_remote = 0;
@@ -97,10 +97,8 @@ typedef struct net_interface{
         //TODO: write out the sendpacket routine
         
         struct sockaddr_in dst_addr;
-        struct in_addr conv;
-        conv.s_addr = IP_remote;
         dst_addr.sin_family = AF_INET;
-        dst_addr.sin_addr = conv;
+        dst_addr.sin_addr = IP_remote;
         dst_addr.sin_port = htons(port_remote);
         
         if((sendto(Node.fd,data_with_header,len,0,(struct sockaddr *)&dst_addr, sizeof(dst_addr)))==-1){
@@ -154,6 +152,11 @@ uint32_t IPStringToInt(std::string ip){
     return res;
 }
 
+void checkLocal(std::string ip, struct in_addr *addr){
+    if(ip=="localhost") {ip = "127.0.0.1";}
+    inet_aton(ip.c_str(),addr);
+}
+
 int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) {
     std::ifstream fin(path);
     
@@ -161,7 +164,9 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
     getline(fin,myInfo);
     
     //get the IP & Port for this node
-    Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
+    //Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
+	//inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&Node->IP_me);
+	checkLocal(myInfo.substr(0,myInfo.find(":")),&Node->IP_me);
     Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
     
     Node->print();
@@ -171,7 +176,9 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         myInfo.erase(0,myInfo.length());
         getline(fin,myInfo);
         net_interface myInt = net_interface(myInterfaces->size()+1);
-        myInt.IP_remote = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
+        //myInt.IP_remote = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
+	//inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&myInt.IP_remote);
+	checkLocal(myInfo.substr(0,myInfo.find(":")),&myInt.IP_remote);
         myInfo.erase(0,myInfo.find(":")+1);
         myInt.port_remote = atoi(myInfo.substr(0,myInfo.find(" ")).c_str());
         myInfo.erase(0,myInfo.find(" ")+1);
@@ -180,7 +187,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         myInfo.erase(0,myInfo.find(" ")+1);
         myInt.vip_remote = IPStringToInt(myInfo);
         
-        if(myInt.IP_remote!=0){
+        if(myInt.IP_remote.s_addr!=0){
             myInt.initSocket();
             myInterfaces->push_back(myInt);
         }
@@ -248,7 +255,7 @@ void respondRoutes(uint32_t requesterIp, int flag){
 
 void shareTable(int flag){
     for(int i=0; i<myInterfaces.size(); i++){
-        respondRoutes(myInterfaces[i].IP_remote, flag);
+        respondRoutes(myInterfaces[i].vip_remote, flag);
     }
 }
 
@@ -312,8 +319,10 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
     struct sockaddr_in r_addr;
     r_addr.sin_family = AF_INET;
-    r_addr.sin_addr.s_addr = myInterfaces.at(interface_id).IP_remote;
+    r_addr.sin_addr = myInterfaces.at(interface_id).IP_remote;
     r_addr.sin_port = htons(myInterfaces.at(interface_id).port_remote);
+
+	printf("sendTo: fd:%d, len:%d, addr:%x, port:%d\n",Node.fd,ip->ip_hl*4 + payload_size,(int)r_addr.sin_addr.s_addr,(int)r_addr.sin_port);
 
     if((sendto(Node.fd, buffer, ip->ip_hl*4 + payload_size, 0,
 	(struct sockaddr *)&r_addr, sizeof(r_addr))) == -1){
@@ -338,7 +347,8 @@ void cmd_up(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
     else myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* buf){ //TODO: may need to create new socket...
-    ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), Node.IP_me, vip.s_addr);
+	printf("str: %s\n",buf);
+    ip_sendto(is_ip, buf, strlen(buf), 0, myInterfaces.at(0).vip_me, vip.s_addr);
 }
 
 void processCommand(char* cmmd){

@@ -35,12 +35,12 @@ int main(int argv, char* argc[]){
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(17003);
+	addr.sin_port = htons(atoi(argc[1]));
 
 	struct sockaddr_in c_addr;
 	c_addr.sin_family = AF_INET;
 	inet_aton("127.0.0.1",&c_addr.sin_addr);
-	c_addr.sin_port = htons(17001);
+	c_addr.sin_port = htons(atoi(argc[2]));
 
 	socklen_t slen = sizeof(struct sockaddr_in);
 
@@ -70,7 +70,7 @@ int main(int argv, char* argc[]){
 	int pkt_id=0;
 
 	while(1){
-		ip->ip_p = pkt_id%3==0 ? 0:200;
+		ip->ip_p = 0;//pkt_id%3==0 ? 0:200;
 		sprintf(payload,"pkt: %d",++pkt_id);
 		if((sendto(nodeSocket, buf, 128, 0, (struct sockaddr *)&c_addr, sizeof(c_addr)))==-1){
 			perror("sendto died painfully:");
