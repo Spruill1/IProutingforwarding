@@ -15,6 +15,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <algorithm>
 
 #include <future>//libraries for dealing with async input and time
@@ -117,10 +118,6 @@ typedef struct forwarding_table_entry {
         int_id = -1;}
 } forwarding_table_entry;
 
-typedef struct forwarding_table {
-    uint16_t num_entries;
-    forwarding_table_entry entries[ROUTING_ENTRIES_MAX];
-} forwarding_table;
 
 typedef struct RIP {
     uint16_t command;
@@ -132,7 +129,7 @@ typedef struct RIP {
 }RIP;
 
 std::vector<net_interface> myInterfaces; //the interfaces for this node
-forwarding_table forwardingTable;
+std::map<uint32_t, forwarding_table_entry> forwardingTable;
 
 uint32_t IPStringToInt(std::string ip){
     if(ip=="localhost") {ip = "127.0.0.1";}
@@ -228,17 +225,15 @@ void respondRoutes(uint32_t requesterIp){
     struct RIP *package;
     package = (struct RIP*) message;
     package->command = (uint16_t)RIP_RESPONSE;
-    
-    package->num_entries = forwardingTable.num_entries;
-    
-    
-    for(int i=0; i<package->num_entries; i++){
-        package->entries[i].cost =  forwardingTable.entries[i].cost;
-        std::string str(forwardingTable.entries[i].dest);
-        package->entries[i].address = IPStringToInt(str);
+    package->num_entries = forwardingTable.size();
+    int i=0;
+    std::map<uint32_t, forwarding_table_entry>::iterator it;
+    for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+    {
+        package->entries[i].cost =  it->second.cost;
+        package->entries[i].address = it->first;
+        i++;
     }
-    
-    
     
     //ip_sendto
     
@@ -248,6 +243,8 @@ void respondRoutes(uint32_t requesterIp){
 void processRoutes(char* message){
     RIP *package = (struct RIP *) message;
     //packet from some other node
+    //if destination exists in the forwarding table
+    
     
     
 }
@@ -353,7 +350,6 @@ int main(int argv, char* argc[]){
         perror("No input file:");
         exit(1);
     }
-    forwardingTable.num_entries = 0;
     readFile(argc[1],&Node,&myInterfaces);  //get the file's information
     
     createReadSocket();
