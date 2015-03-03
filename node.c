@@ -152,7 +152,7 @@ uint32_t IPStringToInt(std::string ip){
 	return res;
 }
 
-int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) {
+void readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) {
 	std::ifstream fin(path);
 
 	std::string myInfo;
@@ -183,7 +183,6 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
 			myInterfaces->push_back(myInt);
 		}
 	}
-    //return something?
 }
 
 void createReadSocket(){
@@ -272,7 +271,7 @@ int main(int argv, char* argc[]){
 			exit(1);
 	}
 
-	if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
+	readFile(argc[1],&Node,&myInterfaces);  //get the file's information
 
 	createReadSocket();
 
