@@ -220,7 +220,11 @@ void cmd_down(int id){
 void cmd_up(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
 	else myInterfaces[id-1].up = true;}
-void cmd_send(struct in_addr vip, char* msg){} //TODO: create the ip header and tack it on, 
+void cmd_send(struct in_addr vip, char* buf){ //TODO: create the ip header and tack it on,
+	struct ip header;
+		header.
+	char msg[MTU];
+}  
 
 void processCommand(char* cmmd){
 	char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
@@ -260,7 +264,13 @@ bool isIP(char* buff) { //TODO: is the packet an IP packet?
 void processIncomingPacket(char* buff) { //TODO: this is called whenever a packet is received once the main loop
 					 //starts, it should just check which type of packet it is and hand off
 					 //to the appropriate method
+	if(isRIP(buff)){
 
+	}
+	if(isIP(buff)){
+
+	}
+	//if the packet is not a valid IP packet or RIP packet, ignore it
 }
 
 int main(int argv, char* argc[]){
@@ -271,7 +281,7 @@ int main(int argv, char* argc[]){
 			exit(1);
 	}
 
-	if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
+	readFile(argc[1],&Node,&myInterfaces);  //get the file's information
 
 	createReadSocket();
 
@@ -287,7 +297,7 @@ int main(int argv, char* argc[]){
 		rfds = fullrfds;
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
 			
-		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input
+		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input, TODO: need to add a bigger size
 			char buf[128];
 			fgets(buf,128,stdin);
 			processCommand(buf);
@@ -295,9 +305,9 @@ int main(int argv, char* argc[]){
 		if(FD_ISSET(Node.fd, &rfds)) {
 			//yay! we got a packet, I wonder what it is?
 			
-			char buf[128];
+			char buf[IN_BUFFER_SIZE];
 
-			if((recv(Node.fd,buf,128,0))==-1){
+			if((recv(Node.fd,buf,IN_BUFFER_SIZE,0))==-1){
 				perror("recv failed:");
 				exit(1);
 			}
