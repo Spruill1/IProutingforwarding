@@ -219,11 +219,11 @@ void requestRoutes(int command){
     
 }
 
-void respondRoutes(uint32_t requesterIp){
+void respondRoutes(uint32_t requesterIp, int flag){
     char message[MTU];
     struct RIP *package;
     package = (struct RIP*) message;
-    package->command = (uint16_t)RIP_RESPONSE;
+    package->command = (uint16_t) flag;
     package->num_entries = forwardingTable.size();
     int i=0;
     std::map<uint32_t, forwarding_table_entry>::iterator it;
@@ -243,6 +243,7 @@ void processRoutes(char* message, uint32_t source_ip){
     RIP *package = (struct RIP *) message;
     //packet from some other node
     //if destination exists in the forwarding table
+    int changed = 0;
     for(int i=0; i<package->num_entries; i++){
         if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
             //table doesn't have a node, add a new one!
@@ -250,15 +251,22 @@ void processRoutes(char* message, uint32_t source_ip){
             newEntry.cost =package->entries[i].cost+1;
             newEntry.hop_ip = source_ip;
             forwardingTable[package->entries[i].address] = newEntry;
-        } else {
+            changed = 1;
+        } else if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
             //pick shortest path!
-            if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
-                forwardingTable[package->entries[i].address].hop_ip = source_ip;
-                forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1
-            }
+            forwardingTable[package->entries[i].address].hop_ip = source_ip;
+            forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1
+            changed = 1;
         }
     }
-    
+    if (changed)
+        shareTable(RIP_UPRESP);
+}
+
+void shareTable(int flag){
+    for(int i=0; i<myInterfaces.size(); i++){
+        respondRoutes(myInterfaces[i].IP_remote, flag);
+    }
 }
 
 int ripMessageSize(RIP *package){
@@ -400,6 +408,7 @@ int main(int argv, char* argc[]){
             
         }
     }
+    
 }
 
 
