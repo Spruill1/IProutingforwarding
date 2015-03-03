@@ -257,7 +257,7 @@ int ripMessageSize(RIP *package){
     return sizeof(uint16_t)*2+sizeof(uint32_t)*2*package->num_entries;
 }
 
-void ip_sendto(char* payload, int payload_size, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip){
+void ip_sendto(char* payload, int payload_size, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip, int sock){
     char buffer[MTU];
     struct ip *ip;
     ip = (struct ip*) buffer;
@@ -294,9 +294,7 @@ void cmd_up(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
     else myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* buf){ //TODO: create the ip header and tack it on,
-    struct ip header;
-    
-    char msg[MTU];
+    //ip_sendto(buf, 
 }
 
 void processCommand(char* cmmd){
