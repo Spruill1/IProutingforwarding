@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <iostream>
 
-#include "ipsum.h"
 #include <netinet/ip.h>
 #include <netinet/in.h>
 
@@ -21,6 +20,8 @@
 #include <future>//libraries for dealing with async input and time
 #include <thread>
 #include <chrono>
+
+#include "ipsum.h"
 
 //using namespace std;
 
@@ -288,6 +289,7 @@ int getNextHop(struct in_addr vip){
     return 0;
 }
 
+//handles the physical sending through a socket, encapsulating the payload in an IP header
 void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t route_ip, uint32_t src_ip, uint32_t dest_ip, int sock){
     char buffer[MTU];
     struct ip *ip;
@@ -296,16 +298,17 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t route_ip, u
     //process package
     // Must fill this up
     ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
-    ip->ip_v = 0; //version
+    ip->ip_v = 4; //version
     ip->ip_tos = 0; //Type of service
-    ip->ip_len = htons(ip->ip_hl + payload_size); //Total length
+    ip->ip_len = htons(ip->ip_hl*4 + payload_size); //Total length, ip_hl is in 32-bit words, need bytes
     ip->ip_id = 0; //id
     ip->ip_off= 0; //offset
-    ip->ip_ttl = 0; //time to live
-    ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL;
-    ip->ip_sum = 0; //checksum
+    ip->ip_ttl = TTL_MAX; //time to live
+    ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL; //set the protocol appropriately
     ip->ip_src.s_addr = src_ip;
     ip->ip_dst.s_addr = dest_ip;
+
+    ip->ip_sum = ip_sum(buffer, ip->ip_hl*4); //calculate the checksum for the IP header
     
     //sendto(<#int#>, <#const void *#>, <#size_t#>, <#int#>, <#const struct sockaddr *#>, <#socklen_t#>)
 }
@@ -356,20 +359,17 @@ void processCommand(char* cmmd){
     }
 }
 
-void processIncomingPacket(char* buff) { //TODO: this is called whenever a packet is received once the main loop
-	//starts, it should just check which type of packet it is and hand off
-	//to the appropriate method
-	//if(strlen(buff) < 20) return; //the packet is too small to even hold an IP header	
+void processIncomingPacket(char* buff) { 
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
-	printf("%s\n",payload);
 
 	if(header->ip_p==RIP_PROTOCOL){
-		printf("\tPacket is a RIP\n");
+		RIP *rip = (RIP *)payload;
+		//TODO: now we have a RIP packet, need to update with it.
 		return;
 	}
 	if(header->ip_p==SENT_PROTOCOL){
-		printf("\tPacket is an IP packet\n");
+		printf("Recieved: %s\n",payload);
 		return;
 	}
 	//if the packet is not a valid IP packet or RIP packet, ignore it
