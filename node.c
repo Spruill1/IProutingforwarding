@@ -114,6 +114,12 @@ typedef struct net_interface{
 typedef struct forwarding_table_entry {
     uint32_t hop_ip;
     uint16_t cost;
+    int int_id;
+    
+    forwarding_table_entry() {
+	hop_ip = 0;
+        cost=TTL_MAX;
+        int_id = -1;}
 } forwarding_table_entry;
 
 
@@ -254,9 +260,16 @@ void processRoutes(char* message, uint32_t source_ip){
             changed = 1;
         } else if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
             //pick shortest path!
+<<<<<<< HEAD
             forwardingTable[package->entries[i].address].hop_ip = source_ip;
             forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1
             changed = 1;
+=======
+            if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
+                forwardingTable[package->entries[i].address].hop_ip = source_ip;
+                forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1;
+            }
+>>>>>>> origin/master
         }
     }
     if (changed)
