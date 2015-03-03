@@ -242,28 +242,19 @@ void respondRoutes(uint32_t requesterIp, int flag){
     package->command = (uint16_t) flag;
     
     //Event Horizon, only broadcast table about the neighbors
+    //no hops
     package->num_entries = forwardingTable.size();
-
-    /*
+    
     int i=0;
     std::map<uint32_t, forwarding_table_entry>::iterator it;
     for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
     {
-        package->entries[i].cost =  it->second.cost;
-        package->entries[i].address = it->first;
-        i++;
-    }
-     */
-   /* 
-    package->num_entries = myInterfaces.size();
-    
-    for(int i=0; i<myInterfaces.size(); i++){
-        if(forwardingTable.find(myInterfaces[i].IP_remote)!=forwardingTable.end()){
-            package->entries[i].cost = forwardTable[myInterfaces[i].IP_remote].cost;
-            package->entries[i].address = myInterfaces[i].vip_remote;
+        if(it->first==it->second.hop_ip){
+            package->entries[i].cost =  it->second.cost;
+            package->entries[i].address = it->first;
+            i++;
         }
     }
-    */
     //ip_sendto
 }
 
@@ -281,17 +272,22 @@ void processRoutes(char* message, uint32_t source_ip){
     for(int i=0; i<package->num_entries; i++){
         if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
             //table doesn't have a node, add a new one!
+            
+            int cost = package->entries[i].cost;
+            cost = (cost>=16)? 16:cost+1; //infinite cost
+            
             forwarding_table_entry newEntry;
-            newEntry.cost =package->entries[i].cost+1;
+            newEntry.cost = (uint16_t)cost;
             newEntry.hop_ip = source_ip;
+            
             forwardingTable[package->entries[i].address] = newEntry;
             changed = 1;
         } else if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
             //pick shortest path!
-            if(forwardingTable[package->entries[i].address].cost > package->entries[i].cost+1){
-                forwardingTable[package->entries[i].address].hop_ip = source_ip;
-                forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1;
-            }
+            int cost = package->entries[i].cost;
+            cost = (cost>=16)? 16:cost+1; //infinite cost
+            forwardingTable[package->entries[i].address].hop_ip = source_ip;
+            forwardingTable[package->entries[i].address].cost = cost;
         }
     }
     if (changed)
