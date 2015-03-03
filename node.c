@@ -116,7 +116,7 @@ typedef struct forwarding_table_entry {
     int int_id;
     
     forwarding_table_entry() {
-	hop_ip = 0;
+        hop_ip = 0;
         cost=TTL_MAX;
         int_id = -1;}
 } forwarding_table_entry;
@@ -165,8 +165,8 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
     
     //get the IP & Port for this node
     //Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
-	//inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&Node->IP_me);
-	checkLocal(myInfo.substr(0,myInfo.find(":")),&Node->IP_me);
+    //inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&Node->IP_me);
+    checkLocal(myInfo.substr(0,myInfo.find(":")),&Node->IP_me);
     Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
     
     Node->print();
@@ -177,8 +177,8 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         getline(fin,myInfo);
         net_interface myInt = net_interface(myInterfaces->size()+1);
         //myInt.IP_remote = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
-	//inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&myInt.IP_remote);
-	checkLocal(myInfo.substr(0,myInfo.find(":")),&myInt.IP_remote);
+        //inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&myInt.IP_remote);
+        checkLocal(myInfo.substr(0,myInfo.find(":")),&myInt.IP_remote);
         myInfo.erase(0,myInfo.find(":")+1);
         myInt.port_remote = atoi(myInfo.substr(0,myInfo.find(" ")).c_str());
         myInfo.erase(0,myInfo.find(" ")+1);
@@ -193,8 +193,8 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         }
     }
     //return something?
-
-	
+    
+    
     return 0;
 }
 
@@ -230,7 +230,7 @@ void requestRoutes(int command){
         return;
     // Send the request packet to all nodes directly linked to it
     for(int i=0; i<myInterfaces.size(); i++){
-        //ip_sendto(message, 32, <#uint32_t *route_ip#>, <#uint32_t *src_ip#>, <#uint32_t *dest_ip#>);
+        //ip_sendto(message, 32, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip);
     }
     
 }
@@ -268,7 +268,7 @@ void processRoutes(char* message, uint32_t source_ip){
     RIP *package = (struct RIP *) message;
     //packet from some other node
     //if destination exists in the forwarding table
-    int changed = 0;
+    bool changed = false;
     for(int i=0; i<package->num_entries; i++){
         if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
             //table doesn't have a node, add a new one!
@@ -281,17 +281,25 @@ void processRoutes(char* message, uint32_t source_ip){
             newEntry.hop_ip = source_ip;
             
             forwardingTable[package->entries[i].address] = newEntry;
-            changed = 1;
+            changed = true;
         } else if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
             //pick shortest path!
             int cost = package->entries[i].cost;
             cost = (cost>=16)? 16:cost+1; //infinite cost
             forwardingTable[package->entries[i].address].hop_ip = source_ip;
             forwardingTable[package->entries[i].address].cost = cost;
+            changed = true;
         }
     }
     if (changed)
         shareTable(RIP_UPRESP);
+}
+
+void takeDown(){
+    //advertise distance to other immediate nodes that it is down
+    for(int i=0; i<myInterfaces.size(); i++){
+        myInterfaces[1].up = false;
+    }
 }
 
 int ripMessageSize(RIP *package){
@@ -322,23 +330,23 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
     ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL; //set the protocol appropriately
     ip->ip_src.s_addr = src_ip;
     ip->ip_dst.s_addr = dest_ip;
-
+    
     ip->ip_sum = ip_sum(buffer, ip->ip_hl*4); //calculate the checksum for the IP header
-
+    
     memcpy(buffer+ip->ip_hl*4,payload,payload_size);
-
+    
     struct sockaddr_in r_addr;
     r_addr.sin_family = AF_INET;
     r_addr.sin_addr = myInterfaces.at(interface_id).IP_remote;
     r_addr.sin_port = htons(myInterfaces.at(interface_id).port_remote);
-
-	printf("sendTo: fd:%d, len:%d, addr:%x, port:%d\n",Node.fd,ip->ip_hl*4 + payload_size,(int)r_addr.sin_addr.s_addr,(int)r_addr.sin_port);
-
+    
+    printf("sendTo: fd:%d, len:%d, addr:%x, port:%d\n",Node.fd,ip->ip_hl*4 + payload_size,(int)r_addr.sin_addr.s_addr,(int)r_addr.sin_port);
+    
     if((sendto(Node.fd, buffer, ip->ip_hl*4 + payload_size, 0,
-	(struct sockaddr *)&r_addr, sizeof(r_addr))) == -1){
-
-	perror("sendto failure:");
-	exit(1);
+               (struct sockaddr *)&r_addr, sizeof(r_addr))) == -1){
+        
+        perror("sendto failure:");
+        exit(1);
     }
 }
 
@@ -357,7 +365,7 @@ void cmd_up(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
     else myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* buf){ //TODO: may need to create new socket...
-	printf("str: %s\n",buf);
+    printf("str: %s\n",buf);
     ip_sendto(is_ip, buf, strlen(buf), 0, myInterfaces.at(0).vip_me, vip.s_addr);
 }
 
@@ -388,20 +396,20 @@ void processCommand(char* cmmd){
     }
 }
 
-void processIncomingPacket(char* buff) { 
-	struct ip* header = (ip*)&buff[0];
-	char * payload = buff + (header->ip_hl*4);
-
-	if(header->ip_p==RIP_PROTOCOL){
-		RIP *rip = (RIP *)payload;
-		//TODO: now we have a RIP packet, need to update with it.
-		return;
-	}
-	if(header->ip_p==SENT_PROTOCOL){
-		printf("Recieved: %s\n",payload);
-		return;
-	}
-	//if the packet is not a valid IP packet or RIP packet, ignore it
+void processIncomingPacket(char* buff) {
+    struct ip* header = (ip*)&buff[0];
+    char * payload = buff + (header->ip_hl*4);
+    
+    if(header->ip_p==RIP_PROTOCOL){
+        RIP *rip = (RIP *)payload;
+        //TODO: now we have a RIP packet, need to update with it.
+        return;
+    }
+    if(header->ip_p==SENT_PROTOCOL){
+        printf("Recieved: %s\n",payload);
+        return;
+    }
+    //if the packet is not a valid IP packet or RIP packet, ignore it
 }
 
 int main(int argv, char* argc[]){
@@ -442,7 +450,7 @@ int main(int argv, char* argc[]){
                 exit(1);
             }
             //printf("Got Packet: %s\n",buf);
-	    processIncomingPacket(buf);
+            processIncomingPacket(buf);
             
         }
     }
