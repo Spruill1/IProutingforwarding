@@ -4,6 +4,7 @@
 
 #include "ipsum.h"
 #include <netinet/ip.h>
+#include <netinet/in.h>
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -62,8 +63,9 @@ typedef struct net_interface{
 			up = false;
     }
 	void print(){
-		printf("net_interface:\n\tid: %d\n\t%x:%d\n\t%x\n\t%x\n",
-			id,IP_remote,port_remote,vip_me,vip_remote);
+		struct in_addr temp;
+		temp.s_addr = vip_me;
+		printf("%d\t%s\t%s\n",id,inet_ntoa(temp),up ? "up" : "down");
 	}
 	void initSocket(){
 		if (sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, 0) < 0 ){
@@ -107,6 +109,7 @@ typedef struct RIP {
 } RIP;
 
 node Node; //global for this node's information
+std::vector<net_interface> myInterfaces; //the interfaces for this node
 forwarding_table forwardingTable;
 
 uint32_t IPStringToInt(std::string ip){
@@ -158,10 +161,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
 			myInterfaces->push_back(myInt);
 		}
 	}
-	for(std::vector<net_interface>::iterator iter = myInterfaces->begin(); iter != myInterfaces->end(); ++iter)
-	{
-		iter->print();
-	}
+
 }
 
 void createReadSocket(){
@@ -184,6 +184,53 @@ void createReadSocket(){
 	Node.fd = nodeSocket;
 }
 
+void cmd_ifconfig(){
+	for(std::vector<net_interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
+	{
+		iter->print();
+	}
+}
+
+void cmd_routes(){}
+void cmd_send(){}
+void cmd_down(){}
+void cmd_up(){}
+
+void processCommand(char* cmmd){
+	if(strncmp(cmmd,"ifconfig",8)==0){
+		cmd_ifconfig();
+		return;
+	}
+	if(strncmp(cmmd,"routes",6)){
+		cmd_routes();
+		return;
+	}
+	if(strncmp(cmmd,"down",4)){
+		cmd_down();
+		return;
+	}
+	if(strncmp(cmmd,"up",2)){
+		cmd_up();
+		return;
+	}
+	if(strncmp(cmmd,"send",4)){
+		cmd_send();
+		return;
+	}
+}
+
+bool isRIP(char* buff) { //is the packet a RIP packet?
+	return false;
+}
+
+bool isIP(char* buff) { //is the packet an IP packet?
+	return false;
+}
+
+void processIncomingPacket(char* buff) {
+
+}
+
 int main(int argv, char* argc[]){
 
 	//if there is no arguments, then exit
@@ -192,7 +239,6 @@ int main(int argv, char* argc[]){
 			exit(1);
 	}
 
-	std::vector<net_interface> myInterfaces;
 	if(int err = readFile(argc[1],&Node,&myInterfaces) < 0) {return err;} //get the file's information
 
 	createReadSocket();
@@ -212,10 +258,10 @@ int main(int argv, char* argc[]){
 		if(FD_ISSET(STDIN_FILENO, &rfds)) {
 			char buf[128];
 			fgets(buf,128,stdin);
-			printf("Got input: %s\n\n",buf);
+			processCommand(buf);
 		}
 		if(FD_ISSET(Node.fd, &rfds)) {
-			//something happened on this node's socket...
+			//yay! we got a packet, I wonder what it is?
 			
 			char buf[128];
 
