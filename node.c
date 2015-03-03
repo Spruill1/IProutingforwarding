@@ -42,6 +42,9 @@ typedef struct node{
 	void print(){printf("node:\t%x:%d\n",IP_me,port_me);}
 } node;
 
+
+node Node; //global for this node's information
+
 typedef struct net_interface{
 	int id;
 
@@ -51,6 +54,7 @@ typedef struct net_interface{
 	uint32_t vip_remote;
 
 	int sock;
+
 	struct sockaddr_in addr;
 	bool up;
 
@@ -67,18 +71,28 @@ typedef struct net_interface{
 		temp.s_addr = vip_me;
 		printf("%d\t%s\t%s\n",id,inet_ntoa(temp),up ? "up" : "down");
 	}
-	void initSocket(){
+	void initSocket(){  //right now I'm thinking this method is pointless, I don't think we need a special socket for each interface
 		if ((sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, IPPROTO_IP)) < 0 ){
 			perror("Create socket failed:");
 			exit(1);
 		}
 		up = true;
 	}
-	int sendPacket(char *data_with_header){
+	int sendPacket(char *data_with_header, int len){
 		if(!up) return -1; //the connection isn't up
 		//TODO: write out the sendpacket routine
-		//	create socket on the fly?
-
+		
+		struct sockaddr_in dst_addr;
+		struct in_addr conv;
+		conv.s_addr = IP_remote;
+		dst_addr.sin_family = AF_INET;
+		dst_addr.sin_addr = conv;
+		dst_addr.sin_port = htons(port_remote);
+		
+		if((sendto(Node.fd,data_with_header,len,0,(struct sockaddr *)&dst_addr, sizeof(dst_addr)))==-1){
+			perror("sendto failed:");
+			exit(1);
+		}
 		return 0; //finished
 	}
 
@@ -108,7 +122,6 @@ typedef struct RIP {
 	} entries[ROUTING_ENTRIES_MAX];
 } RIP;
 
-node Node; //global for this node's information
 std::vector<net_interface> myInterfaces; //the interfaces for this node
 forwarding_table forwardingTable;
 
@@ -191,14 +204,14 @@ void cmd_ifconfig(){
 	}
 }
 
-void cmd_routes(){}
+void cmd_routes(){} //needs a working forwarding table, RIP has to have been completed
 void cmd_down(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
 	else myInterfaces[id-1].up = false;}
 void cmd_up(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
 	else myInterfaces[id-1].up = true;}
-void cmd_send(struct in_addr vip, char* msg){}
+void cmd_send(struct in_addr vip, char* msg){} //TODO: create the ip header and tack it on, 
 
 void processCommand(char* cmmd){
 	char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
@@ -227,15 +240,17 @@ void processCommand(char* cmmd){
 	}
 }
 
-bool isRIP(char* buff) { //is the packet a RIP packet?
+bool isRIP(char* buff) { //TODO: is the packet a RIP packet?
 	return false;
 }
 
-bool isIP(char* buff) { //is the packet an IP packet?
+bool isIP(char* buff) { //TODO: is the packet an IP packet?
 	return false;
 }
 
-void processIncomingPacket(char* buff) {
+void processIncomingPacket(char* buff) { //TODO: this is called whenever a packet is received once the main loop
+					 //starts, it should just check which type of packet it is and hand off
+					 //to the appropriate method
 
 }
 
@@ -263,7 +278,7 @@ int main(int argv, char* argc[]){
 		rfds = fullrfds;
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
 			
-		if(FD_ISSET(STDIN_FILENO, &rfds)) {
+		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input
 			char buf[128];
 			fgets(buf,128,stdin);
 			processCommand(buf);
