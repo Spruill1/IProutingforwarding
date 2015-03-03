@@ -268,7 +268,7 @@ int ripMessageSize(RIP *package){
 
 //takes in a virtual IP address and determines which interface to send it along by searching the forwarding table
 int getNextHop(struct in_addr vip){
-	return 0;
+    return 0;
 }
 
 void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t route_ip, uint32_t src_ip, uint32_t dest_ip, int sock){
