@@ -68,7 +68,7 @@ typedef struct net_interface{
 		printf("%d\t%s\t%s\n",id,inet_ntoa(temp),up ? "up" : "down");
 	}
 	void initSocket(){
-		if (sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, 0) < 0 ){
+		if ((sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, IPPROTO_IP)) < 0 ){
 			perror("Create socket failed:");
 			exit(1);
 		}
