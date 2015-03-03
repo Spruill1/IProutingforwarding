@@ -185,6 +185,8 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         }
     }
     //return something?
+
+	
     return 0;
 }
 
@@ -245,6 +247,12 @@ void respondRoutes(uint32_t requesterIp, int flag){
     
 }
 
+void shareTable(int flag){
+    for(int i=0; i<myInterfaces.size(); i++){
+        respondRoutes(myInterfaces[i].IP_remote, flag);
+    }
+}
+
 void processRoutes(char* message, uint32_t source_ip){
     RIP *package = (struct RIP *) message;
     //packet from some other node
@@ -260,26 +268,14 @@ void processRoutes(char* message, uint32_t source_ip){
             changed = 1;
         } else if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
             //pick shortest path!
-<<<<<<< HEAD
-            forwardingTable[package->entries[i].address].hop_ip = source_ip;
-            forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1
-            changed = 1;
-=======
-            if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
+            if(forwardingTable[package->entries[i].address].cost > package->entries[i].cost+1){
                 forwardingTable[package->entries[i].address].hop_ip = source_ip;
                 forwardingTable[package->entries[i].address].cost = package->entries[i].cost+1;
             }
->>>>>>> origin/master
         }
     }
     if (changed)
         shareTable(RIP_UPRESP);
-}
-
-void shareTable(int flag){
-    for(int i=0; i<myInterfaces.size(); i++){
-        respondRoutes(myInterfaces[i].IP_remote, flag);
-    }
 }
 
 int ripMessageSize(RIP *package){
