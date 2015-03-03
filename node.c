@@ -249,9 +249,10 @@ void processRoutes(char* message){
     //if destination exists in the forwarding table
     
     for(int i=0; i<package->num_entries; i++){
-        if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
+        if(forwardingTable.find(package->entries[i].address) ==  std::map::end){
             //table doesn't have a node
-            forwardingTable[package->entries[i].address] = {}
+	    forwarding_table_entry = newEntry;
+            forwardingTable.insert(std::pair<uint32_t, forwarding_table_entry>(package->entries[i].address,newEntry));
         }
     }
     
