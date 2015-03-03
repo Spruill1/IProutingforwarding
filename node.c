@@ -216,7 +216,7 @@ void requestRoutes(int command){
         char message[4] ={0x0,0x6,0x0,0x0};
     else
         return;
-    
+    // Send the request packet to all nodes directly linked to it
     for(int i=0; i<myInterfaces.size(); i++){
         //ip_sendto(message, 32, <#uint32_t *route_ip#>, <#uint32_t *src_ip#>, <#uint32_t *dest_ip#>);
     }
@@ -247,12 +247,13 @@ void respondRoutes(uint32_t requesterIp){
 
 void processRoutes(char* message){
     RIP *package = (struct RIP *) message;
+    //packet from some other node
     
     
 }
 
-
 int ripMessageSize(RIP *package){
+    //gets the actual message size
     return sizeof(uint16_t)*2+sizeof(uint32_t)*2*package->num_entries;
 }
 
@@ -277,9 +278,6 @@ void ip_sendto(char* payload, int payload_size, uint32_t *route_ip, uint32_t *sr
     
     //sendto(<#int#>, <#const void *#>, <#size_t#>, <#int#>, <#const struct sockaddr *#>, <#socklen_t#>)
 }
-
-
-void sendRoutes()
 
 void cmd_ifconfig(){
     for(std::vector<net_interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
@@ -355,7 +353,7 @@ int main(int argv, char* argc[]){
         perror("No input file:");
         exit(1);
     }
-    
+    forwardingTable.num_entries = 0;
     readFile(argc[1],&Node,&myInterfaces);  //get the file's information
     
     createReadSocket();
