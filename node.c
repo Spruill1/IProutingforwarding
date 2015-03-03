@@ -112,7 +112,7 @@ typedef struct net_interface{
 } net_interface;
 
 typedef struct forwarding_table_entry {
-    char dest[IP_LENGTH];
+    uint32_t dest;
     uint16_t cost;
     int int_id;
     
@@ -248,7 +248,12 @@ void processRoutes(char* message){
     //packet from some other node
     //if destination exists in the forwarding table
     
-    
+    for(int i=0; i<package->num_entries; i++){
+        if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
+            //table doesn't have a node
+            forwardingTable[package->entries[i].address] = {}
+        }
+    }
     
 }
 
