@@ -254,16 +254,16 @@ void respondRoutes(uint32_t requesterIp, int flag){
         i++;
     }
      */
-    
+   /* 
     package->num_entries = myInterfaces.size();
     
     for(int i=0; i<myInterfaces.size(); i++){
         if(forwardingTable.find(myInterfaces[i].IP_remote)!=forwardingTable.end()){
             package->entries[i].cost = forwardTable[myInterfaces[i].IP_remote].cost;
-            package->entries[i].address = myInterfaces[i].IP_remote;
+            package->entries[i].address = myInterfaces[i].vip_remote;
         }
     }
-    
+    */
     //ip_sendto
 }
 
