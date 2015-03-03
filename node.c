@@ -244,8 +244,6 @@ void respondRoutes(uint32_t requesterIp, int flag){
     }
     
     //ip_sendto
-    
-    
 }
 
 void shareTable(int flag){
@@ -290,7 +288,7 @@ int getNextHop(struct in_addr vip){
 }
 
 //handles the physical sending through a socket, encapsulating the payload in an IP header
-void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t route_ip, uint32_t src_ip, uint32_t dest_ip, int sock){
+void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip){
     char buffer[MTU];
     struct ip *ip;
     ip = (struct ip*) buffer;
@@ -309,8 +307,20 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, uint32_t route_ip, u
     ip->ip_dst.s_addr = dest_ip;
 
     ip->ip_sum = ip_sum(buffer, ip->ip_hl*4); //calculate the checksum for the IP header
-    
-    //sendto(<#int#>, <#const void *#>, <#size_t#>, <#int#>, <#const struct sockaddr *#>, <#socklen_t#>)
+
+    memcpy(buffer+ip->ip_hl*4,payload,payload_size);
+
+    struct sockaddr_in r_addr;
+    r_addr.sin_family = AF_INET;
+    r_addr.sin_addr.s_addr = myInterfaces.at(interface_id).IP_remote;
+    r_addr.sin_port = htons(myInterfaces.at(interface_id).port_remote);
+
+    if((sendto(Node.fd, buffer, ip->ip_hl*4 + payload_size, 0,
+	(struct sockaddr *)&r_addr, sizeof(r_addr))) == -1){
+
+	perror("sendto failure:");
+	exit(1);
+    }
 }
 
 void cmd_ifconfig(){
@@ -328,8 +338,7 @@ void cmd_up(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
     else myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* buf){ //TODO: may need to create new socket...
-    net_interface dest = myInterfaces.at(getNextHop(vip));
-    ip_sendto(is_ip, buf, strlen(buf), dest.IP_remote, Node.IP_me, vip.s_addr, Node.fd);
+    ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), Node.IP_me, vip.s_addr);
 }
 
 void processCommand(char* cmmd){
