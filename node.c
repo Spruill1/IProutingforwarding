@@ -192,7 +192,8 @@ void cmd_ifconfig(){
 }
 
 void cmd_routes(){}
-void cmd_down(int id){myInterfaces[id-1].up = false;}
+void cmd_down(int id){
+	if(id > myInterfaces myInterfaces[id-1].up = false;}
 void cmd_up(int id){myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* msg){}
 
