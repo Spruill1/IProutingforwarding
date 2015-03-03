@@ -240,7 +240,11 @@ void respondRoutes(uint32_t requesterIp, int flag){
     struct RIP *package;
     package = (struct RIP*) message;
     package->command = (uint16_t) flag;
+    
+    //Event Horizon, only broadcast table about the neighbors
     package->num_entries = forwardingTable.size();
+
+    /*
     int i=0;
     std::map<uint32_t, forwarding_table_entry>::iterator it;
     for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
@@ -248,6 +252,16 @@ void respondRoutes(uint32_t requesterIp, int flag){
         package->entries[i].cost =  it->second.cost;
         package->entries[i].address = it->first;
         i++;
+    }
+     */
+    
+    package->num_entries = myInterfaces.size();
+    
+    for(int i=0; i<myInterfaces.size(); i++){
+        if(forwardingTable.find(myInterfaces[i].IP_remote)!=forwardingTable.end()){
+            package->entries[i].cost = forwardTable[myInterfaces[i].IP_remote].cost;
+            package->entries[i].address = myInterfaces[i].IP_remote;
+        }
     }
     
     //ip_sendto
