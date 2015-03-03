@@ -116,7 +116,8 @@ typedef struct forwarding_table_entry {
     uint16_t cost;
     int int_id;
     
-    forwarding_table_entry() {memset(&dest[0], 0, IP_LENGTH);
+    forwarding_table_entry() {
+	dest = 0;
         cost=TTL_MAX;
         int_id = -1;}
 } forwarding_table_entry;
@@ -249,9 +250,9 @@ void processRoutes(char* message){
     //if destination exists in the forwarding table
     
     for(int i=0; i<package->num_entries; i++){
-        if(forwardingTable.find(package->entries[i].address) ==  std::map::end){
+        if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
             //table doesn't have a node
-	    forwarding_table_entry = newEntry;
+	    forwarding_table_entry newEntry;
             forwardingTable.insert(std::pair<uint32_t, forwarding_table_entry>(package->entries[i].address,newEntry));
         }
     }
