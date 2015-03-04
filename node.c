@@ -245,9 +245,9 @@ int ripMessageSize(RIP *packet){
 
 //handles the physical sending through a socket, encapsulating the payload in an IP header
 void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip){
-	char buffer[MTU];
+	char bufferd[MTU] = "";
 	struct ip *_ip;
-	_ip = (struct ip *) buffer;
+	_ip = (struct ip *) bufferd;
 
     if(interface_id < 0){
         perror("no matching vip:");
@@ -267,16 +267,14 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	_ip->ip_len = htons(_ip->ip_hl*4 + payload_size); //Total length, ip_hl is in 32-bit words, need bytes
 	_ip->ip_id = 0; //id
 	_ip->ip_off= 0; //offset
-	_ip->ip_ttl = TTL_MAX; //time to live 
+	_ip->ip_ttl = TTL_MAX; //time to live
 	_ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL; //set the protocol appropriately
 	_ip->ip_src.s_addr = src_ip;
 	_ip->ip_dst.s_addr = dest_ip;
 
-	_ip->ip_sum = ip_sum(buffer, _ip->ip_hl*4); //calculate the checksum for the IP header
+	_ip->ip_sum = ip_sum((char*)_ip, 20); //calculate the checksum for the IP header
 
-	if(_ip->ip_sum == 0) {printf("WADDAFUCK!\n\n");}
-
-	memcpy(buffer+_ip->ip_hl*4,payload,payload_size);
+	memcpy(bufferd+20,payload,payload_size);
 
 	struct sockaddr_in r_addr;
 	r_addr.sin_family = AF_INET;
@@ -285,7 +283,7 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
 	printf("sendTo: fd:%d, len:%d, v_dest: %x, v_src:%x addr:%x, port:%d, sum:%x\n",Node.fd,_ip->ip_hl*4 + payload_size,(int)_ip->ip_dst.s_addr,(int)_ip->ip_src.s_addr,(int)r_addr.sin_addr.s_addr,(int)r_addr.sin_port,(u_short)_ip->ip_sum);
 
-	if((sendto(Node.fd, buffer, _ip->ip_hl*4 + payload_size, 0,
+	if((sendto(Node.fd, bufferd, 20 + payload_size, 0,
 			   (struct sockaddr *)&r_addr, sizeof(r_addr))) == -1){
 
 		perror("sendto failure:");
@@ -341,7 +339,7 @@ void shareTable(int flag){
 void processRoutes(RIP *packet, uint32_t source_ip){
 	printf("\n\n");
 	printf("processing routes!\n");
-	
+
 
 	//packet from some other node
 	//if destination exists in the forwarding table
@@ -356,7 +354,7 @@ void processRoutes(RIP *packet, uint32_t source_ip){
 			forwarding_table_entry newEntry;
 			newEntry.cost = (uint16_t)cost;
 			newEntry.hop_ip = source_ip;
-			
+
 			forwardingTable[packet->entries[i].address] = newEntry;
 			printf("New entry, %d %d %d \n", packet->entries[i].address, newEntry.cost, newEntry.hop_ip);
 			changed = true;
@@ -482,7 +480,10 @@ void processIncomingPacket(char* buff) {
 	*/
 	u_short sum = header->ip_sum;
 	header->ip_sum=0;
-	printf("packetCheck: %x\t%x\tid=%d\n",sum,ip_sum(buff,20),(header->ip_p==200?((RIP*)payload)->command:-1));
+	if(sum!=ip_sum(buff,20)) {
+        //the checksum does not match, discard packet
+        return;
+	}
 	if(header->ip_p==RIP_PROTOCOL){
 		RIP *rip = (RIP *)payload;
 		//TODO: Verify if ip_src is the source IP
@@ -495,7 +496,7 @@ void processIncomingPacket(char* buff) {
 			}
 			forwardingTable[(uint32_t)header->ip_src.s_addr].cost = 1;
 			int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
-			
+
 			advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
 			return;
 		}
