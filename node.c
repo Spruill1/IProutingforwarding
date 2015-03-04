@@ -21,6 +21,8 @@
 #include <thread>
 #include <chrono>
 
+#include <time.h>
+
 #include "ipsum.h"
 
 //using namespace std;
@@ -263,7 +265,7 @@ void shareTable(int flag){
 }
 
 void processRoutes(RIP *packet, uint32_t source_ip){
-    
+
     //packet from some other node
     //if destination exists in the forwarding table
     bool changed = false;
