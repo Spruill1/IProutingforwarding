@@ -196,7 +196,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
             myInterfaces->push_back(myInt);
             forwarding_table_entry entry;
             entry.cost = 1;
-            entry.hop_ip = myInt.vip_remote
+            entry.hop_ip = myInt.vip_remote;
             forwardingTable[myInt.vip_remote] = entry;
         }
     }
@@ -241,25 +241,25 @@ void requestRoutes(int command){
 
 void advertiseRoutes(uint32_t requesterIp, int flag){
     char message[MTU];
-    struct RIP *package;
-    package = (struct RIP*) message;
-    package->command = (uint16_t) flag;
+    struct RIP *packet;
+    packet = (struct RIP*) message;
+    packet->command = (uint16_t) flag;
     
     //Event Horizon, only broadcast table about the neighbors
     //no hops
-    package->num_entries = forwardingTable.size();
+    packet->num_entries = forwardingTable.size();
     
     int i=0;
     std::map<uint32_t, forwarding_table_entry>::iterator it;
     for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
     {
         if(it->first!=requesterIp){ //immediate node
-            package->entries[i].cost =  it->second.cost;
-            package->entries[i].address = it->first;
+            packet->entries[i].cost =  it->second.cost;
+            packet->entries[i].address = it->first;
             i++;
         }
     }
-    //ip_sendto
+    //ip_sendto(true, message, ripMessageSize(packet), <#uint32_t dest_ip#>)
 }
 
 void shareTable(int flag){
@@ -299,14 +299,24 @@ void processRoutes(RIP *packet, uint32_t source_ip){
         shareTable(RIP_UPRESP);
 }
 
-int ripMessageSize(RIP *package){
+int ripMessageSize(RIP *packet){
     //gets the actual message size
-    return sizeof(uint16_t)*2+sizeof(uint32_t)*2*package->num_entries;
+    return sizeof(uint16_t)*2+sizeof(uint32_t)*2*packet->num_entries;
+}
+
+int findInterID(uint32_t vip){
+    for(int i=0; i<myInterfaces.size(); i++){
+        if(myInterfaces[i].vip_remote == vip)
+            return i;
+    }
+    return -1;
 }
 
 //takes in a virtual IP address and determines which interface to send it along by searching the forwarding table
 int getNextHop(struct in_addr vip){
-    return 0;
+    if(forwardingTable.find((uint32_t)vip.s_addr) ==  forwardingTable.end())
+        return -1;
+    return findInterID(forwardingTable[(uint32_t)vip.s_addr].hop_ip);
 }
 
 //handles the physical sending through a socket, encapsulating the payload in an IP header
@@ -315,7 +325,9 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
     struct ip *ip;
     ip = (struct ip*) buffer;
     
-    //process package
+    
+    
+    //process packet
     // Must fill this up
     ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
     ip->ip_v = 4; //version
