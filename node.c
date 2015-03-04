@@ -325,7 +325,7 @@ void processRoutes(RIP *packet, uint32_t source_ip){
 	//if destination exists in the forwarding table
 	bool changed = false;
 	for(int i=0; i<packet->num_entries; i++){
-		if(forwardingTable.find(packet->entries[i].address) ==  forwardingTable.end()){
+		if(forwardingTable.count(packet->entries[i].address)>0){
 			//table doesn't have a node, add a new one!
 
 			int cost = packet->entries[i].cost;
@@ -361,7 +361,7 @@ int findInterID(uint32_t vip){
 
 //takes in a virtual IP address and determines which interface to send it along by searching the forwarding table
 int getNextHop(struct in_addr vip){
-	if(forwardingTable.find((uint32_t)vip.s_addr) ==  forwardingTable.end())
+	if(forwardingTable.count((uint32_t)vip.s_addr)>0)
 		return -1;
 	return findInterID(forwardingTable[(uint32_t)vip.s_addr].hop_ip);
 }
@@ -425,11 +425,12 @@ void processIncomingPacket(char* buff) {
 		//TODO: Verify if ip_src is the source IP
 		if(rip->command==RIP_RESPONSE)
 			processRoutes(rip, (uint32_t)header->ip_src.s_addr);
-		else if(rip->command==RIP_REQUEST)
-			if(forwardingTable.find((uint32_t)header->ip_src.s_addr) ==  forwardingTable.end()){
+		else if(rip->command==RIP_REQUEST){
+			if(forwardingTable.count((uint32_t)header->ip_src.s_addr)>0){
 				perror("RIP Request with invalid source location");
 				return;
 			}
+		}
 		int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
 
 		advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
@@ -520,6 +521,7 @@ int main(int argv, char* argc[]){
 			printf("timer hit\n");
 		}
 		checkMapTime();
+		sleep(500);
 	}
 
 }
