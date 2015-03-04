@@ -245,8 +245,6 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	struct ip *ip;
 	ip = (struct ip*) buffer;
 
-
-
 	//process packet
 	// Must fill this up
 	ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -490,6 +488,7 @@ int main(int argv, char* argc[]){
 	FD_ZERO(&fullrfds);
 	FD_SET(Node.fd, &fullrfds);
 	FD_SET(STDIN_FILENO, &fullrfds);
+
 	while(1){
 		rfds = fullrfds;
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
@@ -511,6 +510,7 @@ int main(int argv, char* argc[]){
 			//printf("Got Packet: %s\n",buf);
 			processIncomingPacket(buf);
 
+            printf("stopped here\n");sleep(5);
 		}
 
 		//check timers
