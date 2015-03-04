@@ -484,6 +484,9 @@ int main(int argv, char* argc[]){
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	int activity;
+
+	initMapTime();
+
 	FD_ZERO(&fullrfds);
 	FD_SET(Node.fd, &fullrfds);
 	FD_SET(STDIN_FILENO, &fullrfds);
@@ -516,6 +519,7 @@ int main(int argv, char* argc[]){
 			lastRIP = time(NULL);
 			printf("timer hit\n");
 		}
+		checkMapTime();
 	}
 
 }
