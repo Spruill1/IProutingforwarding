@@ -54,9 +54,9 @@
 typedef struct node{
 	struct in_addr IP_me;
 	int port_me;
-
+	
 	int fd;
-
+	
 	node(){port_me = 0; IP_me.s_addr = 0; fd = -1;}
 	void print(){printf("node:\t%x:%d\n",(int)IP_me.s_addr,port_me);}
 } node;
@@ -66,17 +66,17 @@ node Node; //global for this node's information
 
 typedef struct net_interface{
 	int id;
-
+	
 	struct in_addr IP_remote;
 	uint16_t port_remote;
 	uint32_t vip_me;
 	uint32_t vip_remote;
-
+	
 	int sock;
-
+	
 	struct sockaddr_in addr;
 	bool up;
-
+	
 	net_interface(int id_in){
 		id = id_in;
 		IP_remote.s_addr = 0;
@@ -100,33 +100,33 @@ typedef struct net_interface{
 	int sendPacket(char *data_with_header, int len){
 		if(!up) return -1; //the connection isn't up
 		//TODO: write out the sendpacket routine
-
+		
 		struct sockaddr_in dst_addr;
 		dst_addr.sin_family = AF_INET;
 		dst_addr.sin_addr = IP_remote;
 		dst_addr.sin_port = htons(port_remote);
-
+		
 		if((sendto(Node.fd,data_with_header,len,0,(struct sockaddr *)&dst_addr, sizeof(dst_addr)))==-1){
 			perror("sendto failed:");
 			exit(1);
 		}
 		return 0; //finished
 	}
-
+	
 } net_interface;
 
 typedef struct forwarding_table_entry {
 	uint32_t hop_ip;
 	uint16_t cost;
 	int int_id;
-
-    time_t init;
-
+	
+	time_t init;
+	
 	forwarding_table_entry() {
 		hop_ip = 0;
 		cost=TTL_MAX;
 		int_id = -1;
-		}
+	}
 } forwarding_table_entry;
 
 
@@ -137,8 +137,8 @@ typedef struct RIP {
 		uint32_t cost;
 		uint32_t address;
 	} entries[ROUTING_ENTRIES_MAX];
-
-
+	
+	
 }RIP;
 
 std::vector<net_interface> myInterfaces; //the interfaces for this node
@@ -169,18 +169,18 @@ void checkLocal(std::string ip, struct in_addr *addr){
 
 int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) {
 	std::ifstream fin(path);
-
+	
 	std::string myInfo;
 	getline(fin,myInfo);
-
+	
 	//get the IP & Port for this node
 	//Node->IP_me = IPStringToInt(myInfo.substr(0,myInfo.find(":")));
 	//inet_aton(myInfo.substr(0,myInfo.find(":")).c_str(),&Node->IP_me);
 	checkLocal(myInfo.substr(0,myInfo.find(":")),&Node->IP_me);
 	Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
-
+	
 	Node->print();
-
+	
 	//get the information for the interfaces
 	while(!fin.eof()){
 		myInfo.erase(0,myInfo.length());
@@ -196,7 +196,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
 		IPStringToInt(myInfo.substr(0,myInfo.find(" ")));
 		myInfo.erase(0,myInfo.find(" ")+1);
 		myInt.vip_remote = IPStringToInt(myInfo);
-
+		
 		if(myInt.IP_remote.s_addr!=0){
 			myInt.initSocket();
 			myInterfaces->push_back(myInt);
@@ -207,8 +207,8 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
 		}
 	}
 	//return something?
-
-
+	
+	
 	return 0;
 }
 
@@ -218,17 +218,17 @@ void createReadSocket(){
 		perror("create socket failed:");
 		exit(1);
 	}
-
+	
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(Node.port_me);
-
+	
 	if((bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr)))==-1){
 		perror("bind failed:");
 		exit(1);
 	}
-
+	
 	Node.fd = nodeSocket;
 }
 
@@ -244,7 +244,7 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	char buffer[MTU];
 	struct ip *ip;
 	ip = (struct ip*) buffer;
-
+	
 	//process packet
 	// Must fill this up
 	ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -257,21 +257,21 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL; //set the protocol appropriately
 	ip->ip_src.s_addr = src_ip;
 	ip->ip_dst.s_addr = dest_ip;
-
+	
 	ip->ip_sum = ip_sum(buffer, ip->ip_hl*4); //calculate the checksum for the IP header
-
+	
 	memcpy(buffer+ip->ip_hl*4,payload,payload_size);
-
+	
 	struct sockaddr_in r_addr;
 	r_addr.sin_family = AF_INET;
 	r_addr.sin_addr = myInterfaces.at(interface_id).IP_remote;
 	r_addr.sin_port = htons(myInterfaces.at(interface_id).port_remote);
-
+	
 	printf("sendTo: fd:%d, len:%d, addr:%x, port:%d\n",Node.fd,ip->ip_hl*4 + payload_size,(int)r_addr.sin_addr.s_addr,(int)r_addr.sin_port);
-
+	
 	if((sendto(Node.fd, buffer, ip->ip_hl*4 + payload_size, 0,
 			   (struct sockaddr *)&r_addr, sizeof(r_addr))) == -1){
-
+		
 		perror("sendto failure:");
 		exit(1);
 	}
@@ -287,7 +287,7 @@ void requestRoutes(int command){
 	for(int i=0; i<myInterfaces.size(); i++){
 		ip_sendto(true, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote);
 	}
-
+	
 }
 
 void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
@@ -295,11 +295,11 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 	struct RIP *packet;
 	packet = (struct RIP*) message;
 	packet->command = (uint16_t) flag;
-
+	
 	//Event Horizon, only broadcast table about the neighbors
 	//no hops
 	packet->num_entries = forwardingTable.size();
-
+	
 	int i=0;
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
@@ -320,21 +320,21 @@ void shareTable(int flag){
 }
 
 void processRoutes(RIP *packet, uint32_t source_ip){
-
+	
 	//packet from some other node
 	//if destination exists in the forwarding table
 	bool changed = false;
 	for(int i=0; i<packet->num_entries; i++){
 		if(forwardingTable.count(packet->entries[i].address)==0){
 			//table doesn't have a node, add a new one!
-
+			
 			int cost = packet->entries[i].cost;
 			cost = (cost>=16)? 16:cost+1; //infinite cost
-
+			
 			forwarding_table_entry newEntry;
 			newEntry.cost = (uint16_t)cost;
 			newEntry.hop_ip = source_ip;
-
+			
 			forwardingTable[packet->entries[i].address] = newEntry;
 			changed = true;
 		} else if(forwardingTable[packet->entries[i].address].cost> packet->entries[i].cost+1){
@@ -419,18 +419,18 @@ void processCommand(char* cmmd){
 void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
-
-        printf("\theader source: %x\t",(uint32_t)header->ip_src.s_addr);
-            std::map<uint32_t, forwarding_table_entry>::iterator it;
-            for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
-            {
-                if(difftime(time(NULL),it->second.init) < routingTimeout){
-                    //timeout the routing entry
-                    printf("%x,",it->first);
-                }
-            }
-            printf("\n");
-
+	
+	printf("\theader source: %x\t",(uint32_t)header->ip_src.s_addr);
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		if(difftime(time(NULL),it->second.init) < routingTimeout){
+			//timeout the routing entry
+			printf("%x,",it->first);
+		}
+	}
+	printf("\n");
+	
 	if(header->ip_p==RIP_PROTOCOL){
 		RIP *rip = (RIP *)payload;
 		//TODO: Verify if ip_src is the source IP
@@ -441,11 +441,12 @@ void processIncomingPacket(char* buff) {
 				perror("RIP Request with invalid source location");
 				return;
 			}
+			
+			int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
+			
+			advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
+			return;
 		}
-		int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
-
-		advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
-		return;
 	}
 	if(header->ip_p==SENT_PROTOCOL){
 		printf("Recieved: %s\n",payload);
@@ -457,7 +458,7 @@ void processIncomingPacket(char* buff) {
 time_t lastRIP;
 
 void initMapTime(){
-    std::map<uint32_t, forwarding_table_entry>::iterator it;
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
 		it->second.init = time(NULL);
@@ -465,46 +466,46 @@ void initMapTime(){
 }
 
 void checkMapTime(){
-    std::map<uint32_t, forwarding_table_entry>::iterator it;
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
 		if(difftime(time(NULL),it->second.init) < routingTimeout){
-            //timeout the routing entry
-            it->second.cost = TTL_MAX;
+			//timeout the routing entry
+			it->second.cost = TTL_MAX;
 		}
 	}
 }
 
 int main(int argv, char* argc[]){
-
+	
 	//if there is no arguments, then exit
 	if (argv < 2) {
 		perror("No input file:");
 		exit(1);
 	}
 	readFile(argc[1],&Node,&myInterfaces);  //get the file's information
-
+	
 	createReadSocket();
-
+	
 	requestRoutes(RIP_REQUEST);
 	lastRIP = time(NULL);
-
+	
 	fd_set rfds, fullrfds;
 	struct timeval tv;
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	int activity;
-
+	
 	initMapTime();
-
+	
 	FD_ZERO(&fullrfds);
 	FD_SET(Node.fd, &fullrfds);
 	FD_SET(STDIN_FILENO, &fullrfds);
-
+	
 	while(1){
 		rfds = fullrfds;
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
-
+		
 		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input, TODO: need to add a bigger size
 			char buf[128];
 			fgets(buf,128,stdin);
@@ -512,19 +513,19 @@ int main(int argv, char* argc[]){
 		}
 		if(FD_ISSET(Node.fd, &rfds)) {
 			//yay! we got a packet, I wonder what it is?
-
+			
 			char buf[IN_BUFFER_SIZE] = "";
-
+			
 			if((recv(Node.fd,buf,IN_BUFFER_SIZE,0))==-1){
 				perror("recv failed:");
 				exit(1);
 			}
 			//printf("Got Packet: %s\n",buf);
 			processIncomingPacket(buf);
-
-            printf("stopped here\n");sleep(5);
+			
+			printf("stopped here\n");sleep(5);
 		}
-
+		
 		//check timers
 		if(difftime(time(NULL),lastRIP) > ripTimer){
 			requestRoutes(RIP_REQUEST);
@@ -534,7 +535,7 @@ int main(int argv, char* argc[]){
 		checkMapTime();
 		sleep(5);
 	}
-
+	
 }
 
 
