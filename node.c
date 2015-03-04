@@ -273,6 +273,8 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
 	_ip->ip_sum = ip_sum(buffer, _ip->ip_hl*4); //calculate the checksum for the IP header
 
+	if(_ip->ip_sum == 0) {printf("WADDAFUCK!\n\n");}
+
 	memcpy(buffer+_ip->ip_hl*4,payload,payload_size);
 
 	struct sockaddr_in r_addr;
