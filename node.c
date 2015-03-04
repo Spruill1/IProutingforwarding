@@ -228,6 +228,7 @@ void createReadSocket(){
 	addr.sin_port = htons(Node.port_me);
 
 	if((bind(nodeSocket,(struct sockaddr *)&addr, sizeof(struct sockaddr)))==-1){
+		printf("port %d", Node.port_me);
 		perror("bind failed:");
 		exit(1);
 	}
@@ -338,6 +339,9 @@ void shareTable(int flag){
 }
 
 void processRoutes(RIP *packet, uint32_t source_ip){
+	printf("\n\n");
+	printf("processing routes!\n");
+	
 
 	//packet from some other node
 	//if destination exists in the forwarding table
@@ -352,8 +356,9 @@ void processRoutes(RIP *packet, uint32_t source_ip){
 			forwarding_table_entry newEntry;
 			newEntry.cost = (uint16_t)cost;
 			newEntry.hop_ip = source_ip;
-
+			
 			forwardingTable[packet->entries[i].address] = newEntry;
+			printf("New entry, %d %d %d \n", packet->entries[i].address, newEntry.cost, newEntry.hop_ip);
 			changed = true;
 		} else if(forwardingTable[packet->entries[i].address].cost> packet->entries[i].cost+1){
 			//pick shortest path!
@@ -362,7 +367,9 @@ void processRoutes(RIP *packet, uint32_t source_ip){
 			forwardingTable[packet->entries[i].address].hop_ip = source_ip;
 			forwardingTable[packet->entries[i].address].cost = cost;
 			changed = true;
+			printf("Updated entry, %d %d %d \n", packet->entries[i].address, forwardingTable[packet->entries[i].address].cost, forwardingTable[packet->entries[i].address].hop_ip);
 		}
+		printf("\n\n");
 	}
 	if (changed)
 		shareTable(RIP_UPRESP);
@@ -449,6 +456,13 @@ void processCommand(char* cmmd){
 		cmd_send(vip,arg2);
 		return;
 	}
+	if(strncmp(cmmd,"printT",6 )==0){
+		std::map<uint32_t, forwarding_table_entry>::iterator it;
+		for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+		{
+			printf("\t%d | %d | %d \n",it->first, it->second.cost, it->second.hop_ip);
+		}
+	}
 }
 
 void processIncomingPacket(char* buff) {
@@ -479,8 +493,9 @@ void processIncomingPacket(char* buff) {
 				perror("RIP Request with invalid source location");
 				return;
 			}
+			forwardingTable[(uint32_t)header->ip_src.s_addr].cost = 1;
 			int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
-
+			
 			advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
 			return;
 		}
@@ -506,7 +521,7 @@ void checkMapTime(){
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
-		if(difftime(time(NULL),it->second.init) < routingTimeout){
+		if(difftime(time(NULL),it->second.init) > routingTimeout){
 			//timeout the routing entry
 			it->second.cost = TTL_MAX;
 		}
@@ -531,6 +546,14 @@ int main(int argv, char* argc[]){
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	int activity;
+
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		printf("\t%d | %d | %d \n",it->first, it->second.cost, it->second.hop_ip);
+	}
+
+	initMapTime();
 
 
 	FD_ZERO(&fullrfds);
