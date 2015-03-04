@@ -3,3 +3,7 @@
 *.c~
 
 node
+
+inFile3.txt
+
+*.txt
