@@ -450,6 +450,14 @@ void initMapTime(){
     std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
+		it->second.init = time(NULL);
+	}
+}
+
+void checkMapTime(){
+    std::map<uint32_t, forwarding_table_entry>::iterator it;
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
 		if(difftime(time(NULL),it->second.init < routingTimeout){
             //timeout the routing entry
             it->second.cost = TTL_MAX;
