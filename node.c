@@ -262,30 +262,30 @@ void shareTable(int flag){
     }
 }
 
-void processRoutes(char* message, uint32_t source_ip){
-    RIP *package = (struct RIP *) message;
+void processRoutes(RIP *packet, uint32_t source_ip){
+    
     //packet from some other node
     //if destination exists in the forwarding table
     bool changed = false;
-    for(int i=0; i<package->num_entries; i++){
-        if(forwardingTable.find(package->entries[i].address) ==  forwardingTable.end()){
+    for(int i=0; i<packet->num_entries; i++){
+        if(forwardingTable.find(packet->entries[i].address) ==  forwardingTable.end()){
             //table doesn't have a node, add a new one!
 
-            int cost = package->entries[i].cost;
+            int cost = packet->entries[i].cost;
             cost = (cost>=16)? 16:cost+1; //infinite cost
 
             forwarding_table_entry newEntry;
             newEntry.cost = (uint16_t)cost;
             newEntry.hop_ip = source_ip;
 
-            forwardingTable[package->entries[i].address] = newEntry;
+            forwardingTable[packet->entries[i].address] = newEntry;
             changed = true;
-        } else if(forwardingTable[package->entries[i].address].cost> package->entries[i].cost+1){
+        } else if(forwardingTable[packet->entries[i].address].cost> packet->entries[i].cost+1){
             //pick shortest path!
-            int cost = package->entries[i].cost;
+            int cost = packet->entries[i].cost;
             cost = (cost>=16)? 16:cost+1; //infinite cost
-            forwardingTable[package->entries[i].address].hop_ip = source_ip;
-            forwardingTable[package->entries[i].address].cost = cost;
+            forwardingTable[packet->entries[i].address].hop_ip = source_ip;
+            forwardingTable[packet->entries[i].address].cost = cost;
             changed = true;
         }
     }
@@ -400,7 +400,11 @@ void processIncomingPacket(char* buff) {
 
     if(header->ip_p==RIP_PROTOCOL){
         RIP *rip = (RIP *)payload;
-        //TODO: now we have a RIP packet, need to update with it.
+        //TODO: Verify if ip_src is the source IP
+        if(rip->command==RIP_RESPONSE)
+            processRoutes(rip, (uint32_t)header->ip_src.s_addr);
+        else if(rip->command==RIP_REQUEST)
+            advertiseRoutes((uint32_t)header->ip_src.s_addr, RIP_RESPONSE);
         return;
     }
     if(header->ip_p==SENT_PROTOCOL){
