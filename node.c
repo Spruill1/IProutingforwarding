@@ -284,7 +284,7 @@ void requestRoutes(int command){
 	char* message = (char*)request;
 	// Send the request packet to all nodes directly linked to it
 	for(int i=0; i<myInterfaces.size(); i++){
-		ip_sendto(message, 32, uint32_t *route_ip, uint32_t *src_ip, uint32_t *dest_ip);
+		ip_sendto(true, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote);
 	}
 	
 }
