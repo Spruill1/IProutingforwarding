@@ -244,16 +244,12 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	char buffer[MTU];
 	struct ip *ip;
 	ip = (struct ip*) buffer;
-<<<<<<< HEAD
 
     if(interface_id < 0){
         perror("no matching vip:");
         exit(1);
     }
 
-=======
-
->>>>>>> 516f00009b724c173bc14f6786479bd5fd18bfa3
 	//process packet
 	// Must fill this up
 	ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -370,10 +366,17 @@ int findInterID(uint32_t vip){
 }
 
 //takes in a virtual IP address and determines which interface to send it along by searching the forwarding table
-int getNextHop(struct in_addr vip){
-	if(forwardingTable.count((uint32_t)vip.s_addr)==0)
+int getNextHop(uint32_t vip){
+    std::map<uint32_t, forwarding_table_entry>::iterator it;
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		printf("\t%x",it->first);
+	}
+    printf("\n");
+
+	if(forwardingTable.count(vip)==0)
 		return -1;
-	return findInterID(forwardingTable[(uint32_t)vip.s_addr].hop_ip);
+	return findInterID(forwardingTable[vip].hop_ip);
 }
 void cmd_ifconfig(){
 	for(std::vector<net_interface>::iterator iter = myInterfaces.begin(); iter != myInterfaces.end(); ++iter)
@@ -389,14 +392,20 @@ void cmd_down(int id){
 		myInterfaces[id-1].up = false;
 		//Make route that was taken down infinite
 		forwardingTable[myInterfaces[id-1].vip_remote].cost=TTL_MAX;
+
+		printf("interface %d down\n",id);
 	}
 }
 void cmd_up(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
-	else myInterfaces[id-1].up = true;}
-void cmd_send(struct in_addr vip, char* buf){ //TODO: may need to create new socket...
-	printf("str: %s\tint_id: %d\n\n",buf,getNextHop(vip));
-	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip.s_addr);
+	else {
+        myInterfaces[id-1].up = true;
+		printf("interface %d up\n",id);
+	}
+}
+void cmd_send(uint32_t vip, char* buf){
+	printf("str: %s\tvip: %x\tint_id: %d\n\n",buf,vip,getNextHop(vip));
+	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip);
 }
 
 void processCommand(char* cmmd){
@@ -419,8 +428,10 @@ void processCommand(char* cmmd){
 		return;
 	}
 	if(strncmp(cmmd,"send",4)==0){
-		struct in_addr vip;
-		inet_aton(arg1,&vip);
+		uint32_t vip;
+		//inet_aton(arg1,&vip); //HEREISPROB
+		std::string str = std::string(arg1);
+		vip = IPStringToInt(str);
 		cmd_send(vip,arg2);
 		return;
 	}
@@ -531,13 +542,8 @@ int main(int argv, char* argc[]){
 			}
 			//printf("Got Packet: %s\n",buf);
 			processIncomingPacket(buf);
-<<<<<<< HEAD
 
             //printf("stopped here\n");sleep(5);
-=======
-
-			printf("stopped here\n");sleep(5);
->>>>>>> 516f00009b724c173bc14f6786479bd5fd18bfa3
 		}
 
 		//check timers
