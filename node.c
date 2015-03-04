@@ -86,9 +86,11 @@ typedef struct net_interface{
 		up = false;
 	}
 	void print(){
-		struct in_addr temp;
-		temp.s_addr = vip_me;
-		printf("%d\t%s\t%s\n",id,inet_ntoa(temp),up ? "up" : "down");
+        uint8_t c0 = (uint8_t)((vip_me & 0xFF000000)>>24);
+        uint8_t c1 = (uint8_t)((vip_me & 0x00FF0000)>>16);
+        uint8_t c2 = (uint8_t)((vip_me & 0x0000FF00)>>8);
+        uint8_t c3 = (uint8_t)(vip_me & 0x000000FF);
+		printf("%d\t%d.%d.%d.%d\t%s\n",id,c0,c1,c2,c3,up ? "up" : "down");
 	}
 	void initSocket(){  //right now I'm thinking this method is pointless, I don't think we need a special socket for each interface
 		if ((sock = socket(AF_INET, SOCK_DGRAM/*use UDP*/, IPPROTO_IP)) < 0 ){
