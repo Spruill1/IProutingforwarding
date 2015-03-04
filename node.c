@@ -298,7 +298,6 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 	
 	//Event Horizon, only broadcast table about the neighbors
 	//no hops
-	packet->num_entries = forwardingTable.size();
 	
 	int i=0;
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
@@ -310,6 +309,8 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 			i++;
 		}
 	}
+	packet->num_entries = i;
+
 	ip_sendto(true, message, ripMessageSize(packet), inter_id, myInterfaces[inter_id].vip_me, requesterIp);
 }
 
