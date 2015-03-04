@@ -251,6 +251,11 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
         perror("no matching vip:");
         exit(1);
     }
+	
+	//Don't send if interface is down
+	if(!myInterfaces[interface_id].up){
+		return;
+	}
 
 	//process packet
 	// Must fill this up
