@@ -194,6 +194,10 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
         if(myInt.IP_remote.s_addr!=0){
             myInt.initSocket();
             myInterfaces->push_back(myInt);
+            forwarding_table_entry entry;
+            entry.cost = 1;
+            entry.hop_ip = myInt.vip_remote
+            forwardingTable[myInt.vip_remote] = entry;
         }
     }
     //return something?
