@@ -245,6 +245,11 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	struct ip *ip;
 	ip = (struct ip*) buffer;
 
+    if(interface_id < 0){
+        perror("no matching vip:");
+        exit(1);
+    }
+
 	//process packet
 	// Must fill this up
 	ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -385,13 +390,13 @@ void cmd_up(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
 	else myInterfaces[id-1].up = true;}
 void cmd_send(struct in_addr vip, char* buf){ //TODO: may need to create new socket...
-	printf("str: %s\n",buf);
-	ip_sendto(is_ip, buf, strlen(buf), 0, myInterfaces.at(0).vip_me, vip.s_addr);
+	printf("str: %s\tint_id: %d\n\n",buf,getNextHop(vip));
+	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip.s_addr);
 }
 
 void processCommand(char* cmmd){
 	char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
-	sscanf(cmmd,"%s %s %s",arg0,arg1,arg2);
+	sscanf(cmmd,"%s %s %[^\n]s",arg0,arg1,arg2);
 	if(strncmp(cmmd,"ifconfig",8)==0){
 		cmd_ifconfig();
 		return;
@@ -441,11 +446,11 @@ void processIncomingPacket(char* buff) {
 				perror("RIP Request with invalid source location");
 				return;
 			}
-		}
 		int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
 
 		advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
 		return;
+		}
 	}
 	if(header->ip_p==SENT_PROTOCOL){
 		printf("Recieved: %s\n",payload);
@@ -522,17 +527,16 @@ int main(int argv, char* argc[]){
 			//printf("Got Packet: %s\n",buf);
 			processIncomingPacket(buf);
 
-            printf("stopped here\n");sleep(5);
+            //printf("stopped here\n");sleep(5);
 		}
 
 		//check timers
 		if(difftime(time(NULL),lastRIP) > ripTimer){
 			requestRoutes(RIP_REQUEST);
 			lastRIP = time(NULL);
-			printf("timer hit\n");
 		}
 		checkMapTime();
-		sleep(5);
+		//sleep(5);
 	}
 
 }
