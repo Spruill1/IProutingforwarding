@@ -222,7 +222,7 @@ void createReadSocket(){
 
 
 void requestRoutes(int command){
-    uint32_t request[2];
+    uint16_t request[2];
     request[0] = command;
     request[1] = 0;
     char* message = (char*)request;
@@ -247,7 +247,7 @@ void advertiseRoutes(uint32_t requesterIp, int flag){
     std::map<uint32_t, forwarding_table_entry>::iterator it;
     for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
     {
-        if(it->first==it->requesterIP){ //immediate node
+        if(it->first!=requesterIp){ //immediate node
             package->entries[i].cost =  it->second.cost;
             package->entries[i].address = it->first;
             i++;
@@ -258,7 +258,7 @@ void advertiseRoutes(uint32_t requesterIp, int flag){
 
 void shareTable(int flag){
     for(int i=0; i<myInterfaces.size(); i++){
-        respondRoutes(myInterfaces[i].vip_remote, flag);
+        advertiseRoutes(myInterfaces[i].vip_remote, flag);
     }
 }
 
