@@ -360,7 +360,7 @@ void cmd_down(int id){
     else {
         myInterfaces[id-1].up = false;
         //Make route that was taken down infinite
-        forwardingTable[myInterfaces[id-1].vip_remote].cost=16;
+        forwardingTable[myInterfaces[id-1].vip_remote].cost=TTL_MAX;
     }
 }
 void cmd_up(int id){
