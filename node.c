@@ -357,7 +357,12 @@ void cmd_ifconfig(){
 void cmd_routes(){} //needs a working forwarding table, RIP has to have been completed
 void cmd_down(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
-    else myInterfaces[id-1].up = false;}
+    else {
+        myInterfaces[id-1].up = false;
+        //Make route that was taken down infinite
+        forwardingTable[myInterfaces[id-1].vip_remote].cost=16;
+    }
+}
 void cmd_up(int id){
     if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
     else myInterfaces[id-1].up = true;}
@@ -423,6 +428,8 @@ int main(int argv, char* argc[]){
     readFile(argc[1],&Node,&myInterfaces);  //get the file's information
     
     createReadSocket();
+    
+    requestRoutes(RIP_REQUEST);
     
     fd_set rfds, fullrfds;
     struct timeval tv;
