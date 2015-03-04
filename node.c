@@ -86,10 +86,10 @@ typedef struct net_interface{
 		up = false;
 	}
 	void print(){
-        uint8_t c0 = (uint8_t)((vip_me & 0xFF000000)>>24);
-        uint8_t c1 = (uint8_t)((vip_me & 0x00FF0000)>>16);
-        uint8_t c2 = (uint8_t)((vip_me & 0x0000FF00)>>8);
-        uint8_t c3 = (uint8_t)(vip_me & 0x000000FF);
+        uint8_t c0 = (uint8_t)((vip_remote & 0xFF000000)>>24);
+        uint8_t c1 = (uint8_t)((vip_remote & 0x00FF0000)>>16);
+        uint8_t c2 = (uint8_t)((vip_remote & 0x0000FF00)>>8);
+        uint8_t c3 = (uint8_t)(vip_remote & 0x000000FF);
 		printf("%d\t%d.%d.%d.%d\t%s\n",id,c0,c1,c2,c3,up ? "up" : "down");
 	}
 	void initSocket(){  //right now I'm thinking this method is pointless, I don't think we need a special socket for each interface
@@ -150,17 +150,18 @@ uint32_t IPStringToInt(std::string ip){
 	if(ip=="localhost") {ip = "127.0.0.1";}
 	uint32_t res=0;
 	std::string nIP = std::string(ip.data());
-	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+	uint8_t B0 = atoi(nIP.substr(0,nIP.find(".")).c_str()); printf("B0:%d\t",B0);
 	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+	uint8_t B1 = atoi(nIP.substr(0,nIP.find(".")).c_str()); printf("B1:%d\t",B1);
 	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str());
+	uint8_t B2 = atoi(nIP.substr(0,nIP.find(".")).c_str()); printf("B2:%d\t",B2);
 	nIP.erase(0,nIP.find(".")+1);
-	uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str());
+	uint8_t B3 = atoi(nIP.substr(0,nIP.length()).c_str()); printf("B3:%d\t",B3);
 	res+=B0; res=res<<8;
 	res+=B1; res=res<<8;
 	res+=B2; res=res<<8;
 	res+=B3;
+    printf("res: %x\n",res);
 	return res;
 }
 
@@ -251,7 +252,7 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
         perror("no matching vip:");
         exit(1);
     }
-	
+
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
 		return;
@@ -438,7 +439,9 @@ void processCommand(char* cmmd){
 		uint32_t vip;
 		//inet_aton(arg1,&vip); //HEREISPROB
 		std::string str = std::string(arg1);
+        printf("\t\t\t\tstringIP: %s\n",str.c_str());
 		vip = IPStringToInt(str);
+        printf("\t\t\t\vip: %x\n",vip);
 		cmd_send(vip,arg2);
 		return;
 	}
