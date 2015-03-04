@@ -120,13 +120,13 @@ typedef struct forwarding_table_entry {
 	uint16_t cost;
 	int int_id;
 
-    time_t init;
+	time_t init;
 
 	forwarding_table_entry() {
 		hop_ip = 0;
 		cost=TTL_MAX;
 		int_id = -1;
-		}
+	}
 } forwarding_table_entry;
 
 
@@ -244,12 +244,16 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	char buffer[MTU];
 	struct ip *ip;
 	ip = (struct ip*) buffer;
+<<<<<<< HEAD
 
     if(interface_id < 0){
         perror("no matching vip:");
         exit(1);
     }
 
+=======
+
+>>>>>>> 516f00009b724c173bc14f6786479bd5fd18bfa3
 	//process packet
 	// Must fill this up
 	ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -303,7 +307,6 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 
 	//Event Horizon, only broadcast table about the neighbors
 	//no hops
-	packet->num_entries = forwardingTable.size();
 
 	int i=0;
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
@@ -315,6 +318,8 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 			i++;
 		}
 	}
+	packet->num_entries = i;
+
 	ip_sendto(true, message, ripMessageSize(packet), inter_id, myInterfaces[inter_id].vip_me, requesterIp);
 }
 
@@ -425,16 +430,16 @@ void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
 
-        printf("\theader source: %x\t",(uint32_t)header->ip_src.s_addr);
-            std::map<uint32_t, forwarding_table_entry>::iterator it;
-            for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
-            {
-                if(difftime(time(NULL),it->second.init) < routingTimeout){
-                    //timeout the routing entry
-                    printf("%x,",it->first);
-                }
-            }
-            printf("\n");
+	printf("\theader source: %x\t",(uint32_t)header->ip_src.s_addr);
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		if(difftime(time(NULL),it->second.init) < routingTimeout){
+			//timeout the routing entry
+			printf("%x,",it->first);
+		}
+	}
+	printf("\n");
 
 	if(header->ip_p==RIP_PROTOCOL){
 		RIP *rip = (RIP *)payload;
@@ -446,10 +451,10 @@ void processIncomingPacket(char* buff) {
 				perror("RIP Request with invalid source location");
 				return;
 			}
-		int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
+			int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
 
-		advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
-		return;
+			advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
+			return;
 		}
 	}
 	if(header->ip_p==SENT_PROTOCOL){
@@ -462,7 +467,7 @@ void processIncomingPacket(char* buff) {
 time_t lastRIP;
 
 void initMapTime(){
-    std::map<uint32_t, forwarding_table_entry>::iterator it;
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
 		it->second.init = time(NULL);
@@ -470,12 +475,12 @@ void initMapTime(){
 }
 
 void checkMapTime(){
-    std::map<uint32_t, forwarding_table_entry>::iterator it;
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
 		if(difftime(time(NULL),it->second.init) < routingTimeout){
-            //timeout the routing entry
-            it->second.cost = TTL_MAX;
+			//timeout the routing entry
+			it->second.cost = TTL_MAX;
 		}
 	}
 }
@@ -526,8 +531,13 @@ int main(int argv, char* argc[]){
 			}
 			//printf("Got Packet: %s\n",buf);
 			processIncomingPacket(buf);
+<<<<<<< HEAD
 
             //printf("stopped here\n");sleep(5);
+=======
+
+			printf("stopped here\n");sleep(5);
+>>>>>>> 516f00009b724c173bc14f6786479bd5fd18bfa3
 		}
 
 		//check timers
