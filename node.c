@@ -367,6 +367,8 @@ void processRoutes(RIP *packet, uint32_t source_ip){
 				forwardingTable[packet->entries[i].address].cost = cost;
 				changed = true;
 				printf("Updated entry, %d %d %d \n", packet->entries[i].address, forwardingTable[packet->entries[i].address].cost, forwardingTable[packet->entries[i].address].hop_ip);
+			} else if(packet->entries[i].cost>=16){
+				forwardingTable[packet->entries[i].address].cost = 16;
 			}
 		}
 		printf("\n\n");
@@ -465,6 +467,11 @@ void processCommand(char* cmmd){
 	}
 }
 
+void keepAlive(uint32_t vip){
+	forwardingTable[vip].cost = 1;
+	forwardingTable[vip].init = time(NULL);
+}
+
 void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
@@ -485,8 +492,9 @@ void processIncomingPacket(char* buff) {
 				perror("RIP Request with invalid source location");
 				return;
 			}
-			forwardingTable[(uint32_t)header->ip_src.s_addr].cost = 1;
 			int id = findInterID(forwardingTable[(uint32_t)header->ip_src.s_addr].hop_ip);
+			
+			keepAlive((uint32_t)header->ip_src.s_addr);
 
 			advertiseRoutes((uint32_t)header->ip_src.s_addr, id, RIP_RESPONSE);
 			return;
