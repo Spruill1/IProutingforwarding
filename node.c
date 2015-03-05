@@ -535,7 +535,7 @@ void processIncomingPacket(char* buff) {
 			perror("Was not able to route message packet, no matching ip");
 			return;
 		}
-		ip_sendto(false, payload, sizeof(payload), inter_id, myInterfaces[inter_id].vip_me, (uint32_t)header->ip_dst.s_addr, header->ip_ttl-1);
+		ip_sendto(false, payload, strlen(payload), inter_id, myInterfaces[inter_id].vip_me, (uint32_t)header->ip_dst.s_addr, header->ip_ttl-1);
 		return;
 	}
 	//if the packet is not a valid IP packet or RIP packet, ignore it

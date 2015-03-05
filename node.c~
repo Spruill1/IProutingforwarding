@@ -256,10 +256,6 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
-<<<<<<< HEAD
-		printf("Cannot send: Interface is down\n");
-=======
->>>>>>> e3e406d9fc427df94eb7a7e0df0a89ce4e917ae7
 		return;
 	}
 
@@ -539,7 +535,7 @@ void processIncomingPacket(char* buff) {
 			perror("Was not able to route message packet, no matching ip");
 			return;
 		}
-		ip_sendto(false, payload, sizeof(payload), inter_id, myInterfaces[inter_id].vip_me, (uint32_t)header->ip_dst.s_addr, header->ip_ttl-1);
+		ip_sendto(false, payload, strlen(payload), inter_id, myInterfaces[inter_id].vip_me, (uint32_t)header->ip_dst.s_addr, header->ip_ttl-1);
 		return;
 	}
 	//if the packet is not a valid IP packet or RIP packet, ignore it
