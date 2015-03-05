@@ -467,17 +467,6 @@ void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
 
-	/*printf("\theader source: %x\t",(uint32_t)header->ip_src.s_addr);
-	std::map<uint32_t, forwarding_table_entry>::iterator it;
-	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
-	{
-		if(difftime(time(NULL),it->second.init) < routingTimeout){
-			//timeout the routing entry
-			printf("%x,",it->first);
-		}
-	}
-	printf("\n");
-	*/
 	u_short sum = header->ip_sum;
 	header->ip_sum=0;
 	if(sum!=ip_sum(buff,20)) {
