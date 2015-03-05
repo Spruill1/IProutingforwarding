@@ -420,7 +420,7 @@ void cmd_routes(){
 		ip_dest.s_addr = (in_addr_t)htonl(it->first);
 		ip_hop.s_addr = (in_addr_t)htonl(it->second.hop_ip);
 
-		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), it->second.int_id, it->second.cost);
+		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), it->second.hop_id, it->second.cost);
 	}
 }
 void cmd_down(int id){
