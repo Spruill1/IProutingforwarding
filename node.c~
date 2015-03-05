@@ -256,7 +256,10 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
+<<<<<<< HEAD
 		printf("Cannot send: Interface is down\n");
+=======
+>>>>>>> e3e406d9fc427df94eb7a7e0df0a89ce4e917ae7
 		return;
 	}
 
@@ -420,7 +423,7 @@ void cmd_routes(){
 		ip_dest.s_addr = (in_addr_t)htonl(it->first);
 		ip_hop.s_addr = (in_addr_t)htonl(it->second.hop_ip);
 
-		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), getNextHop(it->first), it->second.cost);
+		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), getNextHop(it->first)+1, it->second.cost);
 	}
 }
 void cmd_down(int id){
@@ -431,18 +434,21 @@ void cmd_down(int id){
 		forwardingTable[myInterfaces[id-1].vip_remote].cost=TTL_MAX;
 
 		printf("interface %d down\n",id);
+		
 	}
 }
 void cmd_up(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
 	else {
         myInterfaces[id-1].up = true;
-		printf("interface %d up\n",id);
+		printf("Interface %d up\n",id);
+		forwardingTable[myInterfaces[id-1].vip_remote].cost = 1;
+		forwardingTable[myInterfaces[id-1].vip_remote].init = time(NULL);
 	}
 }
 void cmd_send(uint32_t vip, char* buf){
 	printf("str: %s\tvip: %x\tint_id: %d\n\n",buf,vip,getNextHop(vip));
-	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
+	ip_sendto(false, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
 }
 
 void processCommand(char* cmmd){
@@ -482,6 +488,13 @@ void processCommand(char* cmmd){
 void keepAlive(uint32_t vip){
 	forwardingTable[vip].cost = 1;
 	forwardingTable[vip].init = time(NULL);
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
+	//timeout for route that uses this entry as hop
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		if(it->second.hop_ip==vip)
+			it->second.init = time(NULL);
+	}
 }
 
 void processIncomingPacket(char* buff) {
@@ -578,8 +591,7 @@ int main(int argv, char* argc[]){
 	struct timeval tv;
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
-	int activity;
-
+	
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
