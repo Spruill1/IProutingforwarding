@@ -299,7 +299,7 @@ void requestRoutes(int command){
 	char* message = (char*)request;
 	// Send the request packet to all nodes directly linked to it
 	for(int i=0; i<myInterfaces.size(); i++){
-		printf("requestRoutes: ");
+		printf("\nrequesting Routes: %d -> %d \n\n ", myInterfaces[i].vip_me,  myInterfaces[i].vip_remote);
 		ip_sendto(is_rip, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote);
 	}
 
@@ -312,21 +312,18 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 	packet->command = (uint16_t) flag;
 
 	//Event Horizon, only broadcast table about the neighbors
-	//no hops
-
-	int i=0;
-	std::map<uint32_t, forwarding_table_entry>::iterator it;
-	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
-	{
-		if(it->first!=requesterIp){ //immediate node
-			packet->entries[i].cost =  it->second.cost;
-			packet->entries[i].address = it->first;
-			i++;
+	//Nodes of distance>1 are not published
+	int packetEntries = 0;
+	for(int i=0; i<myInterfaces.size(); i++){
+		uint32_t remoteIp = myInterfaces[i].vip_remote;
+		if(remoteIp!=requesterIp && forwardingTable.count(remoteIp)!=0){ //immediate node
+			packet->entries[packetEntries].cost =  forwardingTable[remoteIp].cost;
+			packet->entries[packetEntries].address = remoteIp;
+			packetEntries++;
 		}
 	}
-	packet->num_entries = i;
-
-		printf("advertiRoutes: ");
+	packet->num_entries = packetEntries;
+ 
 	ip_sendto(is_rip, message, ripMessageSize(packet), inter_id, myInterfaces[inter_id].vip_me, requesterIp);
 }
 
@@ -358,14 +355,16 @@ void processRoutes(RIP *packet, uint32_t source_ip){
 			forwardingTable[packet->entries[i].address] = newEntry;
 			printf("New entry, %d %d %d \n", packet->entries[i].address, newEntry.cost, newEntry.hop_ip);
 			changed = true;
-		} else if(forwardingTable[packet->entries[i].address].cost> packet->entries[i].cost+1){
-			//pick shortest path!
-			int cost = packet->entries[i].cost;
-			cost = (cost>=TTL_MAX)? TTL_MAX:cost+1; //infinite cost
-			forwardingTable[packet->entries[i].address].hop_ip = source_ip;
-			forwardingTable[packet->entries[i].address].cost = cost;
-			changed = true;
-			printf("Updated entry, %d %d %d \n", packet->entries[i].address, forwardingTable[packet->entries[i].address].cost, forwardingTable[packet->entries[i].address].hop_ip);
+		} else{
+			if(forwardingTable[packet->entries[i].address].cost> packet->entries[i].cost+1){
+				//pick shortest path!
+				int cost = packet->entries[i].cost;
+				cost = (cost>=TTL_MAX)? TTL_MAX:cost+1; //infinite cost
+				forwardingTable[packet->entries[i].address].hop_ip = source_ip;
+				forwardingTable[packet->entries[i].address].cost = cost;
+				changed = true;
+				printf("Updated entry, %d %d %d \n", packet->entries[i].address, forwardingTable[packet->entries[i].address].cost, forwardingTable[packet->entries[i].address].hop_ip);
+			}
 		}
 		printf("\n\n");
 	}
