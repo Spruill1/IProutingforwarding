@@ -526,7 +526,8 @@ void processCommand(char* cmmd){
 		int inter_id = atoi(arg1);
 		int inter_mtu = atoi(arg2);
 		if(inter_id>=myInterfaces.size()){
-			printf("Invalid Interface");
+			printf("Invalid Interface number!\n");
+			return;
 		}
 		myInterfaces[inter_id].inter_mtu = inter_mtu;
 		return;
