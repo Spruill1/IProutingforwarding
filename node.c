@@ -322,7 +322,10 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 		if(remoteIp!=requesterIp && forwardingTable.count(remoteIp)!=0){ //immediate node
 			packet->entries[packetEntries].cost =  forwardingTable[remoteIp].cost;
 			packet->entries[packetEntries].address = remoteIp;
-			packetEntries++;
+			
+			packet->entries[packetEntries+1].cost =  0;
+			packet->entries[packetEntries+1].address = myInterfaces[i].vip_me;
+			packetEntries +=2;
 		}
 	}
 	packet->num_entries = packetEntries;
@@ -406,7 +409,13 @@ void cmd_ifconfig(){
 	}
 }
 
-void cmd_routes(){} //needs a working forwarding table, RIP has to have been completed
+void cmd_routes(){
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		printf("%d  %d | %d \n",it->first, it->second.cost, it->second.hop_ip);
+	}
+}
 void cmd_down(int id){
 	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
 	else {
@@ -459,11 +468,7 @@ void processCommand(char* cmmd){
 		return;
 	}
 	if(strncmp(cmmd,"printT",6 )==0){
-		std::map<uint32_t, forwarding_table_entry>::iterator it;
-		for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
-		{
-			printf("\t%d | %d | %d \n",it->first, it->second.cost, it->second.hop_ip);
-		}
+		
 	}
 }
 
