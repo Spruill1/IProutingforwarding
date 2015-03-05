@@ -71,7 +71,11 @@ typedef struct net_interface{
 	uint16_t port_remote;
 	uint32_t vip_me;
 	uint32_t vip_remote;
-
+	
+	//buffered payload
+	char bufferd[IN_BUFFER_SIZE] = "";
+	uint32_t packet_index = 0;
+	
 	int sock;
 
 	struct sockaddr_in addr;
@@ -260,9 +264,6 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 		return;
 	}
 
-	if(!isRIP){
-		printf("Packet was forwarded!");
-	}
 	//process packet
 	// Must fill this up
 	_ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -420,7 +421,7 @@ void cmd_routes(){
 		ip_dest.s_addr = (in_addr_t)htonl(it->first);
 		ip_hop.s_addr = (in_addr_t)htonl(it->second.hop_ip);
 
-		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), getNextHop(it->first), it->second.cost);
+		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), getNextHop(it->first)+1, it->second.cost);
 	}
 }
 void cmd_down(int id){
@@ -438,10 +439,16 @@ void cmd_up(int id){
 	else {
         myInterfaces[id-1].up = true;
 		printf("Interface %d up\n",id);
+		forwardingTable[myInterfaces[id-1].vip_remote].cost = 1;
+		forwardingTable[myInterfaces[id-1].vip_remote].init = time(NULL);
 	}
 }
 void cmd_send(uint32_t vip, char* buf){
 	printf("str: %s\tvip: %x\tint_id: %d\n\n",buf,vip,getNextHop(vip));
+	if(forwardingTable[vip].cost==16){
+		printf("Cannot send: unreachable IP");
+		return;
+	}
 	ip_sendto(false, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
 }
 
@@ -482,12 +489,23 @@ void processCommand(char* cmmd){
 void keepAlive(uint32_t vip){
 	forwardingTable[vip].cost = 1;
 	forwardingTable[vip].init = time(NULL);
+	std::map<uint32_t, forwarding_table_entry>::iterator it;
+	//timeout for route that uses this entry as hop
+	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
+	{
+		if(it->second.hop_ip==vip)
+			it->second.init = time(NULL);
+	}
 }
 
 void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
-
+	
+	if(header->ip_off != 0){
+		u_short offset;
+	}
+	
 	u_short sum = header->ip_sum;
 	header->ip_sum=0;
 	if(sum!=ip_sum(buff,20)) {
