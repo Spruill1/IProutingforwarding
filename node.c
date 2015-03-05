@@ -73,8 +73,10 @@ typedef struct net_interface{
 	uint32_t vip_remote;
 	
 	//buffered payload
-	char bufferd[IN_BUFFER_SIZE];
-	uint32_t packet_index;
+
+	char buffer[IN_BUFFER_SIZE+1];
+	int packet_index = 0;
+
 	
 	int sock;
 
@@ -87,7 +89,6 @@ typedef struct net_interface{
 		port_remote = 0;
 		vip_me = 0;
 		vip_remote = 0;
-		buffer = "";
 		up = false;
 	}
 	void print(){
@@ -272,7 +273,7 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	_ip->ip_tos = 0; //Type of service
 	_ip->ip_len = htons(_ip->ip_hl*4 + payload_size); //Total length, ip_hl is in 32-bit words, need bytes
 	_ip->ip_id = 0; //id
-	_ip->ip_off= 0; //offset
+	_ip->ip_off= 0x4000; //offset
 	_ip->ip_ttl = (isRIP)? TTL_MAX: timeToLive; //time to live
 	_ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL; //set the protocol appropriately
 	_ip->ip_src.s_addr = src_ip;
@@ -499,22 +500,11 @@ void keepAlive(uint32_t vip){
 	}
 }
 
+
+
 void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
-	
-	if((header->ip_off & IP_DF)!=0){
-		//fragmented
-		if((header->ip_off & IP_MF)>0){
-			int offset = (header->ip_off & IP_OFFMASK);
-			return;
-		} else {
-			//last packet
-			
-		}
-		u_short offset = header->ip_off ;
-		
-	}
 	
 	u_short sum = header->ip_sum;
 	header->ip_sum=0;
@@ -558,6 +548,54 @@ void processIncomingPacket(char* buff) {
 		return;
 	}
 	//if the packet is not a valid IP packet or RIP packet, ignore it
+}
+
+void preprocessIncomingPacket(char* buff) {
+	struct ip* header = (ip*)&buff[0];
+	char * payload = buff + (header->ip_hl*4);
+	int blah =(header->ip_off & IP_DF);
+	if(blah==0){
+		//fragmented
+		
+			int offset = (header->ip_off & IP_OFFMASK)*8;
+			int inter_id;
+			for(int i=0; i<myInterfaces.size(); i++){
+				if((uint32_t)header->ip_dst.s_addr==myInterfaces[i].vip_me){
+					inter_id = i;
+					break;
+				}
+			}
+			
+			int buffOffset = myInterfaces[inter_id].packet_index;
+			if((buffOffset+header->ip_len>IN_BUFFER_SIZE) || (buffOffset != offset)){
+				//attack? drop all
+				myInterfaces[inter_id].packet_index = 0;
+				return;
+			}
+			if(buffOffset==0){
+				//first packet, copy header
+				strncpy(myInterfaces[inter_id].buffer, buff, header->ip_len);
+				myInterfaces[inter_id].packet_index = header->ip_len;
+			} else {
+				//copy only payload
+				if((header->ip_off & IP_MF)>0){
+					strncpy(myInterfaces[inter_id].buffer + buffOffset, payload, header->ip_len - (header->ip_hl*4));
+					myInterfaces[inter_id].packet_index += (header->ip_len - (header->ip_hl*4));
+				} else {
+					//last packet
+					strncpy(myInterfaces[inter_id].buffer + buffOffset, payload, header->ip_len - (header->ip_hl*4));
+					myInterfaces[inter_id].packet_index += (header->ip_len - (header->ip_hl*4));
+					myInterfaces[myInterfaces[inter_id].packet_index] = '\0'; //this may be wrong!
+					
+					processIncomingPacket(myInterfaces[inter_id].buffer);
+					myInterfaces[inter_id].packet_index = 0;
+				}
+			}
+		
+	} else {
+		processIncomingPacket(buff);
+	}
+	
 }
 
 time_t lastRIP;
@@ -640,7 +678,7 @@ int main(int argv, char* argc[]){
 				exit(1);
 			}
 			//printf("Got Packet: %s\n",buf);
-			processIncomingPacket(buf);
+			preprocessIncomingPacket(buf);
 
             //printf("stopped here\n");sleep(5);
 		}
