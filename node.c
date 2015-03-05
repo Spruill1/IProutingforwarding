@@ -87,6 +87,7 @@ typedef struct net_interface{
 		port_remote = 0;
 		vip_me = 0;
 		vip_remote = 0;
+		buffer = "";
 		up = false;
 	}
 	void print(){
@@ -502,8 +503,17 @@ void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
 	
-	if(header->ip_off != 0){
-		u_short offset;
+	if((header->ip_off & IP_DF)!=0){
+		//fragmented
+		if((header->ip_off & IP_MF)>0){
+			int offset = (header->ip_off & IP_OFFMASK);
+			return;
+		} else {
+			//last packet
+			
+		}
+		u_short offset = header->ip_off ;
+		
 	}
 	
 	u_short sum = header->ip_sum;
