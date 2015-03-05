@@ -73,8 +73,8 @@ typedef struct net_interface{
 	uint32_t vip_remote;
 	
 	//buffered payload
-	char bufferd[IN_BUFFER_SIZE] = "";
-	uint32_t packet_index = 0;
+	char bufferd[IN_BUFFER_SIZE];
+	uint32_t packet_index;
 	
 	int sock;
 

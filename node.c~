@@ -71,7 +71,11 @@ typedef struct net_interface{
 	uint16_t port_remote;
 	uint32_t vip_me;
 	uint32_t vip_remote;
-
+	
+	//buffered payload
+	char bufferd[IN_BUFFER_SIZE];
+	uint32_t packet_index;
+	
 	int sock;
 
 	struct sockaddr_in addr;
@@ -182,7 +186,7 @@ int readFile(char* path, node *Node, std::vector<net_interface> * myInterfaces) 
 	checkLocal(myInfo.substr(0,myInfo.find(":")),&Node->IP_me);
 	Node->port_me = atoi(myInfo.substr(myInfo.find(":")+1,myInfo.npos).c_str());
 
-	Node->print();
+	//Node->print();
 
 	//get the information for the interfaces
 	while(!fin.eof()){
@@ -256,12 +260,10 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
+		printf("\n\nWTFFFF\n\n");
 		return;
 	}
 
-	if(!isRIP){
-		printf("Packet was forwarded!");
-	}
 	//process packet
 	// Must fill this up
 	_ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -423,18 +425,17 @@ void cmd_routes(){
 	}
 }
 void cmd_down(int id){
-	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
+	if(id > myInterfaces.size()) {printf("Interface %d not found\n",id);}
 	else {
 		myInterfaces[id-1].up = false;
 		//Make route that was taken down infinite
 		forwardingTable[myInterfaces[id-1].vip_remote].cost=TTL_MAX;
 
 		printf("interface %d down\n",id);
-		
 	}
 }
 void cmd_up(int id){
-	if(id > myInterfaces.size()) {printf("interface %d not found\n",id);}
+	if(id > myInterfaces.size()) {printf("Interface %d not found\n",id);}
 	else {
         myInterfaces[id-1].up = true;
 		printf("Interface %d up\n",id);
@@ -444,6 +445,10 @@ void cmd_up(int id){
 }
 void cmd_send(uint32_t vip, char* buf){
 	printf("str: %s\tvip: %x\tint_id: %d\n\n",buf,vip,getNextHop(vip));
+	if(forwardingTable[vip].cost==16){
+		printf("Cannot send: unreachable IP");
+		return;
+	}
 	ip_sendto(false, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
 }
 
@@ -496,7 +501,11 @@ void keepAlive(uint32_t vip){
 void processIncomingPacket(char* buff) {
 	struct ip* header = (ip*)&buff[0];
 	char * payload = buff + (header->ip_hl*4);
-
+	
+	if(header->ip_off != 0){
+		u_short offset;
+	}
+	
 	u_short sum = header->ip_sum;
 	header->ip_sum=0;
 	if(sum!=ip_sum(buff,20)) {
@@ -524,7 +533,7 @@ void processIncomingPacket(char* buff) {
 	if(header->ip_p==SENT_PROTOCOL){
 		for(int i=0; i<myInterfaces.size(); i++){
 			if((uint32_t)header->ip_dst.s_addr==myInterfaces[i].vip_me){
-				printf("Recieved: %s\n",payload);
+				printf("%s\n",payload);
 				return;
 			}
 		}
@@ -587,12 +596,9 @@ int main(int argv, char* argc[]){
 	struct timeval tv;
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
-	
+	int activity;
+
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
-	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
-	{
-		printf("\t%d | %d | %d \n",it->first, it->second.cost, it->second.hop_ip);
-	}
 
 	initMapTime();
 
