@@ -248,9 +248,7 @@ int ripMessageSize(RIP *packet){
 	return sizeof(uint16_t)*2+sizeof(uint32_t)*2*packet->num_entries;
 }
 
-
-//handles the physical sending through a socket, encapsulating the payload in an IP header
-void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive){
+void ip_sendPacket(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive){
 	char bufferd[MTU] = "";
 	struct ip *_ip;
 	_ip = (struct ip *) bufferd;
@@ -265,6 +263,9 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 		printf("\n\nWTFFFF\n\n");
 		return;
 	}
+	
+	//if the packet is bigger than mtu then split the packet
+	
 	
 	//process packet
 	// Must fill this up
@@ -296,6 +297,16 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 		perror("sendto failure:");
 		exit(1);
 	}
+	
+	
+	
+}
+
+
+//handles the physical sending through a socket, encapsulating the payload in an IP header
+void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive){
+	
+	ip_sendPacket(isRIP, payload, payload_size, interface_id, src_ip, dest_ip, timeToLive);
 }
 
 
