@@ -249,14 +249,14 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	struct ip *_ip;
 	_ip = (struct ip *) bufferd;
 
-    if(interface_id < 0){
-        perror("no matching vip:");
-        exit(1);
-    }
+	    if(interface_id < 0){
+		perror("no matching vip:");
+		return;
+	    }
 
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
-		printf("\n\nWTFFFF\n\n");
+		printf("Cannot send: Interface is down\n");
 		return;
 	}
 
@@ -442,7 +442,7 @@ void cmd_up(int id){
 }
 void cmd_send(uint32_t vip, char* buf){
 	printf("str: %s\tvip: %x\tint_id: %d\n\n",buf,vip,getNextHop(vip));
-	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
+	ip_sendto(false, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
 }
 
 void processCommand(char* cmmd){
@@ -602,8 +602,8 @@ int main(int argv, char* argc[]){
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
 
 		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input, TODO: need to add a bigger size
-			char buf[128];
-			fgets(buf,128,stdin);
+			char buf[MTU] = "";
+			fgets(buf,MTU,stdin);
 			processCommand(buf);
 		}
 		if(FD_ISSET(Node.fd, &rfds)) {

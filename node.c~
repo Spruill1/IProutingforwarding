@@ -249,14 +249,14 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	struct ip *_ip;
 	_ip = (struct ip *) bufferd;
 
-    if(interface_id < 0){
-        perror("no matching vip:");
-        exit(1);
-    }
+	    if(interface_id < 0){
+		perror("no matching vip:");
+		return;
+	    }
 
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
-		printf("\n\nWTFFFF\n\n");
+		printf("Cannot send: Interface is down\n");
 		return;
 	}
 
@@ -420,7 +420,7 @@ void cmd_routes(){
 		ip_dest.s_addr = (in_addr_t)htonl(it->first);
 		ip_hop.s_addr = (in_addr_t)htonl(it->second.hop_ip);
 
-		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), findInterID(it->first), it->second.cost);
+		printf("%s\t%d\t%d\n",inet_ntoa(ip_dest), getNextHop(it->first), it->second.cost);
 	}
 }
 void cmd_down(int id){
@@ -602,8 +602,8 @@ int main(int argv, char* argc[]){
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
 
 		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input, TODO: need to add a bigger size
-			char buf[128];
-			fgets(buf,128,stdin);
+			char buf[MTU] = "";
+			fgets(buf,MTU,stdin);
 			processCommand(buf);
 		}
 		if(FD_ISSET(Node.fd, &rfds)) {
