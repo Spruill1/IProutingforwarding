@@ -284,9 +284,9 @@ void ip_sendPacket(bool isRIP, char* payload, int payload_size, int interface_id
 
 	_ip->ip_sum = ip_sum((char*)_ip, 20); //calculate the checksum for the IP header
 
-	
+
 	memcpy(bufferd+IP_HEADER_SIZE,payload,payload_size);
-	
+
 
 	struct sockaddr_in r_addr;
 	r_addr.sin_family = AF_INET;
@@ -307,17 +307,17 @@ void ip_sendPacket(bool isRIP, char* payload, int payload_size, int interface_id
 //handles the physical sending through a socket, encapsulating the payload in an IP header
 void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive){
 
-	
+
 	if(payload_size+IP_HEADER_SIZE<=myInterfaces[interface_id].inter_mtu){
 		ip_sendPacket(isRIP, payload, payload_size, interface_id, src_ip, dest_ip, timeToLive, IP_DF);
 		return;
 	}
-	
+
 	//split packets
 	int total_size = payload_size+IP_HEADER_SIZE;
 	int frag_offset_increment = (int)(myInterfaces[interface_id].inter_mtu-IP_HEADER_SIZE)/8;
 	int frag_payload_size = 8*frag_offset_increment;
-	
+
 	int num_packets = (payload_size-1)/frag_payload_size+1; //round up
 	u_short offset = 0;
 	for(int i=0; i<num_packets; i++){
@@ -328,10 +328,10 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 			ip_sendPacket(isRIP, payload+i*frag_payload_size, last_frag_payload_size, interface_id, src_ip, dest_ip, TTL_MAX, offset);
 			return;
 		}
-		
+
 		offset = (i*frag_offset_increment)|IP_MF; //MF=1 DF=0 more packets, fragmented
 		ip_sendPacket(isRIP, payload+i*frag_payload_size, frag_payload_size, interface_id, src_ip, dest_ip, TTL_MAX, offset);
-	}		
+	}
 
 }
 
@@ -522,16 +522,16 @@ void processCommand(char* cmmd){
 		return;
 	}
 	if(strncmp(cmmd,"mtu",3)==0){
-		
-		int inter_id;
-		int inter_mtu = MTU;
+
+		int inter_id = atoi(arg1);
+		int inter_mtu = atoi(arg2);
 		if(inter_id>=myInterfaces.size()){
 			printf("Invalid Interface");
 		}
 		myInterfaces[inter_id].inter_mtu = inter_mtu;
 		return;
 	}
-	
+
 }
 
 void keepAlive(uint32_t vip){
