@@ -244,7 +244,7 @@ int ripMessageSize(RIP *packet){
 
 
 //handles the physical sending through a socket, encapsulating the payload in an IP header
-void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip){
+void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive){
 	char bufferd[MTU] = "";
 	struct ip *_ip;
 	_ip = (struct ip *) bufferd;
@@ -260,6 +260,9 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 		return;
 	}
 
+	if(!isRIP){
+		printf("Packet was forwarded!");
+	}
 	//process packet
 	// Must fill this up
 	_ip->ip_hl = 5; //header length  5 is the minimum length, counts # of 32-bit words in the header
@@ -268,7 +271,7 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	_ip->ip_len = htons(_ip->ip_hl*4 + payload_size); //Total length, ip_hl is in 32-bit words, need bytes
 	_ip->ip_id = 0; //id
 	_ip->ip_off= 0; //offset
-	_ip->ip_ttl = TTL_MAX; //time to live
+	_ip->ip_ttl = (isRIP)? TTL_MAX: timeToLive; //time to live
 	_ip->ip_p = isRIP ? RIP_PROTOCOL:SENT_PROTOCOL; //set the protocol appropriately
 	_ip->ip_src.s_addr = src_ip;
 	_ip->ip_dst.s_addr = dest_ip;
@@ -302,7 +305,7 @@ void requestRoutes(int command){
 	for(int i=0; i<myInterfaces.size(); i++){
 		if(myInterfaces[i].up && forwardingTable[myInterfaces[i].vip_remote].cost<16){
 			printf("\nrequesting Routes: %d -> %d \n\n ", myInterfaces[i].vip_me,  myInterfaces[i].vip_remote);
-			ip_sendto(is_rip, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote);
+			ip_sendto(is_rip, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote, TTL_MAX);
 		}
 	}
 
@@ -330,7 +333,7 @@ void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
 	}
 	packet->num_entries = packetEntries;
  
-	ip_sendto(is_rip, message, ripMessageSize(packet), inter_id, myInterfaces[inter_id].vip_me, requesterIp);
+	ip_sendto(is_rip, message, ripMessageSize(packet), inter_id, myInterfaces[inter_id].vip_me, requesterIp, TTL_MAX);
 }
 
 void shareTable(int flag){
@@ -413,7 +416,11 @@ void cmd_routes(){
 	std::map<uint32_t, forwarding_table_entry>::iterator it;
 	for (it = forwardingTable.begin(); it != forwardingTable.end(); it++)
 	{
-		printf("%d  %d | %d \n",it->first, it->second.cost, it->second.hop_ip);
+		struct in_addr ip_dest, ip_hop;
+		ip_dest.s_addr = (in_addr_t)htonl(it->first);
+		ip_hop.s_addr = (in_addr_t)htonl(it->second.hop_ip);
+
+		printf("%s  %d | %s \n",inet_ntoa(ip_dest), it->second.cost, inet_ntoa(ip_hop));
 	}
 }
 void cmd_down(int id){
@@ -435,7 +442,7 @@ void cmd_up(int id){
 }
 void cmd_send(uint32_t vip, char* buf){
 	printf("str: %s\tvip: %x\tint_id: %d\n\n",buf,vip,getNextHop(vip));
-	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip);
+	ip_sendto(is_ip, buf, strlen(buf), getNextHop(vip), myInterfaces.at(0).vip_me, vip, TTL_MAX);
 }
 
 void processCommand(char* cmmd){
@@ -506,7 +513,20 @@ void processIncomingPacket(char* buff) {
 		}
 	}
 	if(header->ip_p==SENT_PROTOCOL){
-		printf("Recieved: %s\n",payload);
+		for(int i=0; i<myInterfaces.size(); i++){
+			if((uint32_t)header->ip_dst.s_addr==myInterfaces[i].vip_me){
+				printf("Recieved: %s\n",payload);
+				return;
+			}
+		}
+		
+		//forward packet!
+		int inter_id;
+		if((inter_id = getNextHop((uint32_t)header->ip_dst.s_addr))==-1 || header->ip_ttl<=1){
+			perror("Was not able to route message packet, no matching ip");
+			return;
+		}
+		ip_sendto(false, payload, sizeof(payload), inter_id, myInterfaces[inter_id].vip_me, (uint32_t)header->ip_dst.s_addr, header->ip_ttl-1);
 		return;
 	}
 	//if the packet is not a valid IP packet or RIP packet, ignore it
