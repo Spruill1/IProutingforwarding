@@ -77,7 +77,7 @@ typedef struct net_interface{
 
 	char buffer[IN_BUFFER_SIZE+1];
 	int packet_index = 0;
-
+	int inter_mtu = MTU;
 
 	int sock;
 
@@ -252,7 +252,7 @@ int ripMessageSize(RIP *packet){
 
 
 void ip_sendPacket(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive, uint16_t offset){
-	char bufferd[MTU] = "";
+	char bufferd[IN_BUFFER_SIZE] = "";
 	struct ip *_ip;
 	_ip = (struct ip *) bufferd;
 
@@ -308,14 +308,14 @@ void ip_sendPacket(bool isRIP, char* payload, int payload_size, int interface_id
 void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, uint32_t src_ip, uint32_t dest_ip, u_char timeToLive){
 
 	
-	if(payload_size+IP_HEADER_SIZE<=MTU){
+	if(payload_size+IP_HEADER_SIZE<=myInterfaces[interface_id].inter_mtu){
 		ip_sendPacket(isRIP, payload, payload_size, interface_id, src_ip, dest_ip, timeToLive, IP_DF);
 		return;
 	}
 	
 	//split packets
 	int total_size = payload_size+IP_HEADER_SIZE;
-	int frag_offset_increment = (int)(MTU-IP_HEADER_SIZE)/8;
+	int frag_offset_increment = (int)(myInterfaces[interface_id].inter_mtu-IP_HEADER_SIZE)/8;
 	int frag_payload_size = 8*frag_offset_increment;
 	
 	int num_packets = (payload_size-1)/frag_payload_size+1; //round up
@@ -353,7 +353,7 @@ void requestRoutes(int command){
 }
 
 void advertiseRoutes(uint32_t requesterIp, int inter_id, int flag){
-	char message[MTU];
+	char message[IN_BUFFER_SIZE];
 	RIP *packet;
 	packet = (RIP*) message;
 	packet->command = (uint16_t) flag;
@@ -493,7 +493,7 @@ void cmd_send(uint32_t vip, char* buf){
 }
 
 void processCommand(char* cmmd){
-	char arg0[10], arg1[20], arg2[MTU]; //TODO: go back and give a better size for arg2
+	char arg0[10], arg1[20], arg2[IN_BUFFER_SIZE]; //TODO: go back and give a better size for arg2
 	sscanf(cmmd,"%s %s %[^\n]s",arg0,arg1,arg2);
 	if(strncmp(cmmd,"ifconfig",8)==0){
 		cmd_ifconfig();
@@ -521,6 +521,17 @@ void processCommand(char* cmmd){
 		cmd_send(vip,arg2);
 		return;
 	}
+	if(strncmp(cmmd,"mtu",3)==0){
+		
+		int inter_id;
+		int inter_mtu = MTU;
+		if(inter_id>=myInterfaces.size()){
+			printf("Invalid Interface");
+		}
+		myInterfaces[inter_id].inter_mtu = inter_mtu;
+		return;
+	}
+	
 }
 
 void keepAlive(uint32_t vip){
@@ -603,7 +614,7 @@ void preprocessIncomingPacket(char* buff) {
 
 		int buffOffset = myInterfaces[inter_id].packet_index;
 		if((buffOffset+header->ip_len>IN_BUFFER_SIZE) || (buffOffset != offset)){
-			//attack? drop all
+			//attack? drop all //got wrong packet
 			myInterfaces[inter_id].packet_index = 0;
 			return;
 		}
@@ -699,8 +710,8 @@ int main(int argv, char* argc[]){
 		select(Node.fd+1,&rfds,NULL,NULL,&tv);
 
 		if(FD_ISSET(STDIN_FILENO, &rfds)) { //user input, TODO: need to add a bigger size
-			char buf[MTU] = "";
-			fgets(buf,MTU,stdin);
+			char buf[IN_BUFFER_SIZE] = "";
+			fgets(buf,IN_BUFFER_SIZE,stdin);
 			processCommand(buf);
 		}
 		if(FD_ISSET(Node.fd, &rfds)) {
