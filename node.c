@@ -256,6 +256,7 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 
 	//Don't send if interface is down
 	if(!myInterfaces[interface_id].up){
+		printf("\n\nWTFFFF\n\n");
 		return;
 	}
 
@@ -299,8 +300,10 @@ void requestRoutes(int command){
 	char* message = (char*)request;
 	// Send the request packet to all nodes directly linked to it
 	for(int i=0; i<myInterfaces.size(); i++){
-		printf("\nrequesting Routes: %d -> %d \n\n ", myInterfaces[i].vip_me,  myInterfaces[i].vip_remote);
-		ip_sendto(is_rip, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote);
+		if(myInterfaces[i].up && forwardingTable[myInterfaces[i].vip_remote].cost<16){
+			printf("\nrequesting Routes: %d -> %d \n\n ", myInterfaces[i].vip_me,  myInterfaces[i].vip_remote);
+			ip_sendto(is_rip, message, 32, i, myInterfaces[i].vip_me, myInterfaces[i].vip_remote);
+		}
 	}
 
 }
@@ -513,6 +516,14 @@ void checkMapTime(){
 		if(difftime(time(NULL),it->second.init) > routingTimeout){
 			//timeout the routing entry
 			it->second.cost = TTL_MAX;
+			std::map<uint32_t, forwarding_table_entry>::iterator it2;
+			//timeout for route that uses this entry as hop
+			for (it2 = forwardingTable.begin(); it2 != forwardingTable.end(); it2++)
+			{
+				if(it2->second.hop_ip==it->first)
+					it2->second.cost=TTL_MAX;
+			}
+
 		}
 	}
 }
