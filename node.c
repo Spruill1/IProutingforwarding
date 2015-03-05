@@ -321,10 +321,12 @@ void ip_sendto(bool isRIP, char* payload, int payload_size, int interface_id, ui
 	int num_packets = (payload_size-1)/frag_payload_size+1; //round up
 	u_short offset = 0;
 	for(int i=0; i<num_packets; i++){
+		
 		if(i==(num_packets-1)){
 			//last packet
 			offset = i*frag_offset_increment; //MF=0 DF=0 last packet
 			int last_frag_payload_size = payload_size % frag_payload_size;
+			
 			ip_sendPacket(isRIP, payload+i*frag_payload_size, last_frag_payload_size, interface_id, src_ip, dest_ip, TTL_MAX, offset);
 			return;
 		}
@@ -523,10 +525,14 @@ void processCommand(char* cmmd){
 	}
 	if(strncmp(cmmd,"mtu",3)==0){
 
-		int inter_id = atoi(arg1);
+		int inter_id = atoi(arg1)-1;
 		int inter_mtu = atoi(arg2);
 		if(inter_id>=myInterfaces.size()){
 			printf("Invalid Interface number!\n");
+			return;
+		}
+		if(inter_mtu<IP_HEADER_SIZE+8){
+			printf("MTU too small!\n");
 			return;
 		}
 		myInterfaces[inter_id].inter_mtu = inter_mtu;
@@ -614,24 +620,24 @@ void preprocessIncomingPacket(char* buff) {
 		}
 
 		int buffOffset = myInterfaces[inter_id].packet_index;
-		if((buffOffset+header->ip_len>IN_BUFFER_SIZE) || (buffOffset != offset)){
+		if((buffOffset != offset)){
 			//attack? drop all //got wrong packet
 			myInterfaces[inter_id].packet_index = 0;
 			return;
 		}
 		if(buffOffset==0){
 			//first packet, copy header
-			strncpy(myInterfaces[inter_id].buffer, buff, header->ip_len);
-			myInterfaces[inter_id].packet_index = header->ip_len;
+			strncpy(myInterfaces[inter_id].buffer, buff, ntohl(header->ip_len));
+			myInterfaces[inter_id].packet_index = ntohl(header->ip_len);
 		} else {
 			//copy only payload
 			if((header->ip_off & IP_MF)>0){
 				strncpy(myInterfaces[inter_id].buffer + buffOffset, payload, header->ip_len - (header->ip_hl*4));
-				myInterfaces[inter_id].packet_index += (header->ip_len - (header->ip_hl*4));
+				myInterfaces[inter_id].packet_index += (ntohl(header->ip_len) - (header->ip_hl*4));
 			} else {
 				//last packet
-				strncpy(myInterfaces[inter_id].buffer + buffOffset, payload, header->ip_len - (header->ip_hl*4));
-				myInterfaces[inter_id].packet_index += (header->ip_len - (header->ip_hl*4));
+				strncpy(myInterfaces[inter_id].buffer + buffOffset, payload, ntohl(header->ip_len) - (header->ip_hl*4));
+				myInterfaces[inter_id].packet_index += (ntohl(header->ip_len) - (header->ip_hl*4));
 				myInterfaces[myInterfaces[inter_id].packet_index] = '\0'; //this may be wrong!
 
 				processIncomingPacket(myInterfaces[inter_id].buffer);
